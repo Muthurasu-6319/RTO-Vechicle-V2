@@ -32,8 +32,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Redirect root to admin login */}
-        <Route path="/" element={<Navigate to="/admin" replace />} />
+        {/* Redirect root to user login */}
+        <Route path="/" element={<Navigate to="/user/login" replace />} />
         
         {/* Admin Login Route */}
         <Route path="/admin" element={<AdminLogin />} />
