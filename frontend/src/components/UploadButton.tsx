@@ -59,8 +59,9 @@ const UploadButton: React.FC<UploadButtonProps> = ({ onUploadSuccess, folderPath
       formData.append('folder', folder);
 
       const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      // Using 'auto' allows uploading both images and pdfs
-      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+      // Use 'raw' for PDFs to prevent Cloudinary from processing them as images, which causes loading errors
+      const resourceType = fileToUpload.type === 'application/pdf' ? 'raw' : 'auto';
+      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
 
       const uploadResponse = await fetch(cloudinaryUrl, {
         method: 'POST',
