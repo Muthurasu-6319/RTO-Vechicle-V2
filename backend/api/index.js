@@ -25,20 +25,28 @@ let firebaseInitError = null;
 // Initialize Firebase
 try {
   if (!getApps().length) {
-    // Handle Vercel environment variable parsing quirks
+    // Handle Vercel environment variable parsing quirks (users often paste with quotes)
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
     if (privateKey) {
-      // Remove surrounding quotes if user accidentally pasted them
-      privateKey = privateKey.replace(/^"|"$/g, '');
-      // Fix escaped newlines
-      privateKey = privateKey.replace(/\\n/g, '\n');
+      privateKey = privateKey.replace(/^"|"$/g, ''); // Strip quotes
+      privateKey = privateKey.replace(/\\n/g, '\n'); // Fix escaped newlines
+    }
+
+    let projectId = process.env.FIREBASE_PROJECT_ID;
+    if (projectId) projectId = projectId.replace(/^"|"$/g, ''); // Strip quotes
+
+    let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    if (clientEmail) clientEmail = clientEmail.replace(/^"|"$/g, ''); // Strip quotes
+
+    if (!projectId || !privateKey || !clientEmail) {
+      throw new Error('Missing Firebase Environment Variables. Please check Vercel settings.');
     }
 
     initializeApp({
       credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
+        projectId: projectId,
         privateKey: privateKey,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        clientEmail: clientEmail,
       })
     });
     console.log('Firebase Admin initialized successfully');
