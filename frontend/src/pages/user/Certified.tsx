@@ -27,6 +27,25 @@ const Certified = () => {
     fetchApplications();
   }, []);
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Error downloading file", err);
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <div style={{ paddingBottom: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -73,12 +92,18 @@ const Certified = () => {
                     
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                       {app.vahanCertUrl ? (
-                        <a 
-                          href={app.vahanCertUrl} target="_blank" rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, textDecoration: 'none' }}
+                        <button 
+                          onClick={() => {
+                            // Extract filename from URL
+                            let filename = app.vahanCertUrl.split('/').pop() || `Vahan_Certificate_${app.vehicleNo}.pdf`;
+                            // Remove any query parameters if present
+                            filename = filename.split('?')[0];
+                            handleDownload(app.vahanCertUrl, filename);
+                          }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >
                           <Download size={16} /> Download
-                        </a>
+                        </button>
                       ) : (
                         <span style={{ color: '#94a3b8' }}>Not available</span>
                       )}

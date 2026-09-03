@@ -46,7 +46,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({ onUploadSuccess, folderPath
       if (!sigResponse.ok) {
         throw new Error('Failed to get upload signature from backend');
       }
-      const { timestamp, signature, folder } = await sigResponse.json();
+      const { timestamp, signature, folder, use_filename, unique_filename } = await sigResponse.json();
 
       setProgress(50);
 
@@ -57,6 +57,8 @@ const UploadButton: React.FC<UploadButtonProps> = ({ onUploadSuccess, folderPath
       formData.append('timestamp', timestamp);
       formData.append('signature', signature);
       formData.append('folder', folder);
+      if (use_filename) formData.append('use_filename', use_filename);
+      if (unique_filename) formData.append('unique_filename', unique_filename);
 
       const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
       // Use 'raw' for PDFs to prevent Cloudinary from processing them as images, which causes loading errors

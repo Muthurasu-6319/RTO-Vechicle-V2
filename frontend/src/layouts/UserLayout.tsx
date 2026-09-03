@@ -1,7 +1,9 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import NotificationBell from '../components/NotificationBell';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
+import logo from '../assets/image.png';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -28,9 +30,12 @@ const UserLayout = () => {
       
       {/* Sidebar */}
       <aside style={{ width: '260px', backgroundColor: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-color)', margin: 0 }}>RTO PORTAL</h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>User Panel</p>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <img src={logo} alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+          <div>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-color)', margin: 0 }}>V LINK PORTAL</h1>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>User Panel</p>
+          </div>
         </div>
 
         <nav style={{ flex: 1, padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -97,7 +102,10 @@ const UserLayout = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: '2rem', height: '100vh', overflowY: 'auto' }}>
+      <main style={{ flex: 1, padding: '2rem', height: '100vh', overflowY: 'auto', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '1.5rem', right: '2rem', zIndex: 10 }}>
+          <NotificationBell isAdmin={false} />
+        </div>
         <Outlet />
       </main>
       

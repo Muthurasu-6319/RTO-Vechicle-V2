@@ -164,7 +164,7 @@ const Subscriptions = () => {
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>Subscriptions</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage 2-Year certificate quotas for users.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Manage subscription certificates for users.</p>
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -276,7 +276,7 @@ const Subscriptions = () => {
                     <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email})</option>
                   ))}
                 </select>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Subscription count sets the 2-Year certificate quota for the user.</p>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Subscription count sets the subscription quota for the user.</p>
               </div>
 
               <div>

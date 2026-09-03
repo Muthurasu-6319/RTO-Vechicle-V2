@@ -46,6 +46,25 @@ const Installed = () => {
     }
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Error downloading file", err);
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <div style={{ paddingBottom: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -69,8 +88,8 @@ const Installed = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Temp Cert Status</th>
-                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>Provide Response</th>
-                  <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Preview</th>
+                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>RTO Approval</th>
+                  <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Download</th>
                 </tr>
               </thead>
               <tbody>
@@ -97,19 +116,25 @@ const Installed = () => {
                           onClick={() => handleRtoApprove(app.id)}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >
-                          <CheckCircle size={16} /> Approve
+                          <CheckCircle size={16} /> Yes
                         </button>
                       )}
                       {app.status === 'RTOApproved' && <span style={{ color: '#047857', fontSize: '0.875rem' }}>Responded</span>}
                     </td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                       {app.tempCertUrl ? (
-                        <a 
-                          href={app.tempCertUrl} download="Temporary_Certificate" target="_blank" rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, textDecoration: 'none' }}
+                        <button 
+                          onClick={() => {
+                            // Extract filename from URL (e.g. genz.pdf)
+                            let filename = app.tempCertUrl.split('/').pop() || `Temp_Certificate_${app.vehicleNo}.pdf`;
+                            // Remove any query parameters if present
+                            filename = filename.split('?')[0];
+                            handleDownload(app.tempCertUrl, filename);
+                          }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >
-                          <Download size={16} /> Preview
-                        </a>
+                          <Download size={16} /> Download
+                        </button>
                       ) : (
                         <span style={{ color: '#94a3b8' }}>-</span>
                       )}

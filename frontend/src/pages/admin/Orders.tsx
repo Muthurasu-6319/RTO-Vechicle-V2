@@ -171,7 +171,7 @@ const Orders = () => {
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>Orders & Quota</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage orders and allocate 1-Year certificate quotas to users.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Manage orders and allocate stock certificates to users.</p>
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -284,7 +284,7 @@ const Orders = () => {
                     <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email})</option>
                   ))}
                 </select>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Quantity in this order sets the 1-Year certificate quota for the user.</p>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Quantity in this order sets the stock quota for the user.</p>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

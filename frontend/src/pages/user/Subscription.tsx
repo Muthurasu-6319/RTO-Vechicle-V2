@@ -44,7 +44,7 @@ const Subscription = () => {
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subscriptions</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>View your 2-Year certificate subscriptions and allocated quotas.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>View your subscription certificates and allocated quotas.</p>
       </div>
 
       {loading ? (
@@ -55,14 +55,14 @@ const Subscription = () => {
         <div className="glass-panel" style={{ padding: '3rem', borderRadius: '1rem', textAlign: 'center' }}>
           <CreditCard size={48} color="#94a3b8" style={{ marginBottom: '1rem' }} />
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Subscriptions</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>You don't have any active subscriptions. Contact your admin for 2-Year certificate access.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>You don't have any active subscriptions. Contact your admin for subscription certificate access.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Summary Banner */}
           <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f3e8ff', border: '1px solid #a78bfa' }}>
             <div>
-              <h4 style={{ fontWeight: 600, color: '#5b21b6', margin: 0 }}>Total 2-Year Quota</h4>
+              <h4 style={{ fontWeight: 600, color: '#5b21b6', margin: 0 }}>Total Subscription Quota</h4>
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#7c3aed' }}>Sum of all subscription counts</p>
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#7c3aed' }}>

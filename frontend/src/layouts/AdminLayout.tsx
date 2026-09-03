@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import NotificationBell from '../components/NotificationBell';
+import logo from '../assets/image.png';
 import { 
   LayoutDashboard, 
   Users, 
@@ -52,9 +54,9 @@ const AdminLayout = () => {
       {/* Sidebar */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
-          <div className="logo-container">
-            <div className="logo-icon"></div>
-            <h2>RTO Portal</h2>
+          <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <img src={logo} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+            <h2 style={{ fontSize: '1.25rem', margin: 0 }}>V LINK PORTAL</h2>
           </div>
           <button className="mobile-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
             <X size={24} />
@@ -92,7 +94,8 @@ const AdminLayout = () => {
             <Menu size={24} />
           </button>
           
-          <div className="topbar-actions">
+          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <NotificationBell isAdmin={true} />
             <div className="admin-profile">
               <div className="avatar">A</div>
               <div className="admin-info">

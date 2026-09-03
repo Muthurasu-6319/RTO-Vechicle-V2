@@ -76,9 +76,9 @@ const ApplyCertificate = () => {
 
       // If today has passed the threshold date, it's more than 8 years
       if (today > thresholdDate) {
-        setFormData(prev => ({ ...prev, validity: '2 Years' }));
-      } else {
         setFormData(prev => ({ ...prev, validity: '1 Year' }));
+      } else {
+        setFormData(prev => ({ ...prev, validity: '2 Years' }));
       }
     }
   }, [formData.registrationDate]);
@@ -127,13 +127,13 @@ const ApplyCertificate = () => {
     
     // Quota Enforcement - 1 Year
     if (formData.validity === '1 Year' && quota && quota.remainingQuota <= 0) {
-      alert('Limit reached! You have exhausted your 1-Year certificate limit. Please subscribe for more quantity.');
+      alert('Limit reached! You have exhausted your Stock limit. Please contact admin for more quantity.');
       return;
     }
 
     // Quota Enforcement - 2 Years
     if (formData.validity === '2 Years' && quota && quota.remainingQuota2Year <= 0) {
-      alert('Limit reached! You have exhausted your 2-Year certificate limit. Please subscribe for more quantity.');
+      alert('Limit reached! You have exhausted your Subscription limit. Please subscribe for more quantity.');
       return;
     }
 
@@ -236,7 +236,7 @@ const ApplyCertificate = () => {
               fontWeight: 600,
               textAlign: 'center'
             }}>
-              Limit reached! You cannot submit another 1‑Year certificate. Please contact admin for more quota.
+              Limit reached! You cannot submit another Stock certificate. Please contact admin for more quota.
             </div>
           )}
 
@@ -252,7 +252,7 @@ const ApplyCertificate = () => {
               fontWeight: 600,
               textAlign: 'center'
             }}>
-              Limit reached! You cannot submit another 2‑Year certificate. Please subscribe for additional quota.
+              Limit reached! You cannot submit another Subscription certificate. Please subscribe for additional quota.
             </div>
           )}
 
@@ -331,8 +331,8 @@ const ApplyCertificate = () => {
                 disabled={true}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
               >
-                <option value="1 Year">1 Year</option>
-                <option value="2 Years">2 Years</option>
+                <option value="1 Year">Stock</option>
+                <option value="2 Years">Subscription</option>
               </select>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-calculated based on Reg Date</span>
             </div>

@@ -75,10 +75,12 @@ app.get('/api/cloudinary/sign', (req, res) => {
   
   const signature = cloudinary.utils.api_sign_request({
     timestamp: timestamp,
-    folder: folder
+    folder: folder,
+    use_filename: 'true',
+    unique_filename: 'false'
   }, process.env.CLOUDINARY_API_SECRET);
 
-  res.json({ timestamp, signature, folder });
+  res.json({ timestamp, signature, folder, use_filename: 'true', unique_filename: 'false' });
 });
 
 // Admin Authentication Route
@@ -328,6 +330,16 @@ app.post('/api/applications', async (req, res) => {
     data.createdAt = new Date().toISOString();
     
     const docRef = await db.collection('applications').add(data);
+    
+    // Trigger Admin Notification
+    await db.collection('notifications').add({
+      userId: 'admin', // send to all admins or a generic admin inbox
+      title: 'New Application Received',
+      message: `A new certificate application has been submitted for vehicle ${data.vehicleNo}.`,
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+
     res.status(201).json({ message: 'Application submitted successfully', id: docRef.id });
   } catch (error) {
     console.error('Error submitting application:', error);
@@ -363,10 +375,26 @@ app.get('/api/applications', async (req, res) => {
 app.put('/api/applications/:id/approve', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Get application to find userId
+    const appDoc = await db.collection('applications').doc(id).get();
+    const appData = appDoc.exists ? appDoc.data() : null;
+
     await db.collection('applications').doc(id).update({
       status: 'Installed',
       approvedAt: new Date().toISOString()
     });
+
+    if (appData && appData.userId) {
+      await db.collection('notifications').add({
+        userId: appData.userId,
+        title: 'Application Approved',
+        message: `Your application for vehicle ${appData.vehicleNo || 'Unknown'} has been approved!`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     res.json({ message: 'Application moved to Installed successfully' });
   } catch (error) {
     console.error('Error approving application:', error);
@@ -411,11 +439,26 @@ app.put('/api/applications/:id/vahan-cert', async (req, res) => {
   try {
     const { id } = req.params;
     const { vahanCertUrl } = req.body;
+    
+    const appDoc = await db.collection('applications').doc(id).get();
+    const appData = appDoc.exists ? appDoc.data() : null;
+
     await db.collection('applications').doc(id).update({
       status: 'Certified',
       vahanCertUrl: vahanCertUrl,
       certifiedAt: new Date().toISOString()
     });
+
+    if (appData && appData.userId) {
+      await db.collection('notifications').add({
+        userId: appData.userId,
+        title: 'Certificate Ready',
+        message: `Your Vahan Certificate for ${appData.vehicleNo || 'Unknown'} is ready to download.`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     res.json({ message: 'Vahan Certificate uploaded successfully' });
   } catch (error) {
     console.error('Error uploading vahan cert:', error);
@@ -473,7 +516,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// Create Order (Quota for 1-Year Validity)
+// Create Order (Quota for 1-Year Validity / Stock)
 app.post('/api/orders', async (req, res) => {
   try {
     const data = req.body;
@@ -485,6 +528,16 @@ app.post('/api/orders', async (req, res) => {
     const stockDoc = await stockRef.get();
     const currentStock = stockDoc.exists ? (stockDoc.data().deviceStock || 0) : 0;
     await stockRef.set({ deviceStock: currentStock + Number(data.quantity || 0) }, { merge: true });
+
+    if (data.userId) {
+      await db.collection('notifications').add({
+        userId: data.userId,
+        title: 'Stock Added',
+        message: `${data.quantity} Stock certificates have been allocated to your account.`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
 
     res.json({ id: docRef.id, message: 'Order created successfully' });
   } catch (error) {
@@ -636,12 +689,23 @@ app.get('/api/users/:uid/quota', async (req, res) => {
 
 // --- SUBSCRIPTION ROUTES --- //
 
-// Create Subscription (2-Year Quota)
+// Create Subscription (Subscription Quota)
 app.post('/api/subscriptions', async (req, res) => {
   try {
     const data = req.body;
     data.createdAt = new Date().toISOString();
     const docRef = await db.collection('subscriptions').add(data);
+    
+    if (data.userId) {
+      await db.collection('notifications').add({
+        userId: data.userId,
+        title: 'Subscription Added',
+        message: `${data.subscriptionCount || data.quantity || 1} Subscriptions have been allocated to your account.`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     res.json({ id: docRef.id, message: 'Subscription created successfully' });
   } catch (error) {
     console.error('Error creating subscription:', error);
@@ -704,6 +768,98 @@ app.get('/api/subscriptions/user/:uid', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user subscriptions:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// --- NOTIFICATIONS ROUTES --- //
+
+// Get notifications for a user (or admin if uid = 'admin')
+app.get('/api/notifications/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const snapshot = await db.collection('notifications')
+      .where('userId', '==', uid)
+      .get();
+      
+    const notifications = [];
+    snapshot.forEach(doc => {
+      notifications.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort in memory to avoid composite index requirement
+    notifications.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    
+    // Limit to 20
+    const limitedNotifications = notifications.slice(0, 20);
+    
+    res.json(limitedNotifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('notifications').doc(id).update({ read: true });
+    res.json({ message: 'Notification marked as read' });
+  } catch (error) {
+    console.error('Error updating notification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark all notifications as read for a user
+app.put('/api/notifications/user/:uid/readAll', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const snapshot = await db.collection('notifications')
+      .where('userId', '==', uid)
+      .where('read', '==', false)
+      .get();
+      
+    const batch = db.batch();
+    snapshot.forEach(doc => {
+      batch.update(doc.ref, { read: true });
+    });
+    await batch.commit();
+    
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking all as read:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Proxy download to force attachment and avoid CORS/dummy pdf issues
+app.get('/api/download', async (req, res) => {
+  try {
+    const { url: fileUrl, filename } = req.query;
+    if (!fileUrl) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    const response = await fetch(fileUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Failed to fetch file from server (Status: ${response.status})` });
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    
+    res.setHeader('Content-Disposition', `attachment; filename="${filename || 'download'}"`);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+    
+    res.send(buffer);
+  } catch (error) {
+    console.error('Download proxy error:', error);
+    res.status(500).json({ error: 'Error downloading file' });
   }
 });
 

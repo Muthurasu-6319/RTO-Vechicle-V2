@@ -63,7 +63,7 @@ const Received = () => {
           {/* Summary Banner */}
           <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#e0e7ff', border: '1px solid #818cf8' }}>
             <div>
-              <h4 style={{ fontWeight: 600, color: '#3730a3', margin: 0 }}>Total Allocated Quota (1-Year)</h4>
+              <h4 style={{ fontWeight: 600, color: '#3730a3', margin: 0 }}>Total Allocated Quota (Stock)</h4>
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#4f46e5' }}>Sum of all order quantities</p>
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#4f46e5' }}>
