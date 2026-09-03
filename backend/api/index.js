@@ -20,6 +20,8 @@ app.use(cors());
 app.use(express.json());
 let db;
 
+let firebaseInitError = null;
+
 // Initialize Firebase
 try {
   if (!getApps().length) {
@@ -43,6 +45,7 @@ try {
   }
   db = getFirestore();
 } catch (error) {
+  firebaseInitError = error.message;
   console.error('Firebase Admin initialization error:', error.message);
 }
 
@@ -50,7 +53,9 @@ try {
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'success', 
-    message: 'RTO Portal V2 Backend is running successfully on Vercel!'
+    message: 'RTO Portal V2 Backend is running successfully on Vercel!',
+    firebaseStatus: db ? 'Connected' : 'Failed',
+    firebaseError: firebaseInitError
   });
 });
 
