@@ -20,14 +20,28 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize Firebase
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    })
-  });
+try {
+  if (!getApps().length) {
+    // Handle Vercel environment variable parsing quirks
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey) {
+      // Remove surrounding quotes if user accidentally pasted them
+      privateKey = privateKey.replace(/^"|"$/g, '');
+      // Fix escaped newlines
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+
+    initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        privateKey: privateKey,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      })
+    });
+    console.log('Firebase Admin initialized successfully');
+  }
+} catch (error) {
+  console.error('Firebase Admin initialization error:', error.message);
 }
 
 // Basic API Route
