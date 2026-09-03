@@ -18,6 +18,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+let db;
 
 // Initialize Firebase
 try {
@@ -40,6 +41,7 @@ try {
     });
     console.log('Firebase Admin initialized successfully');
   }
+  db = getFirestore();
 } catch (error) {
   console.error('Firebase Admin initialization error:', error.message);
 }
@@ -51,9 +53,6 @@ app.get('/api/health', (req, res) => {
     message: 'RTO Portal V2 Backend is running successfully on Vercel!'
   });
 });
-
-// Initialize Firestore
-const db = getFirestore();
 
 // Cloudinary Signature Route
 app.get('/api/cloudinary/sign', (req, res) => {
