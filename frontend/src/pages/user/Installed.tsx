@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, FileText, CheckCircle, Clock } from 'lucide-react';
+import { auth } from '../../firebase';
 
 const Installed = () => {
   const [applications, setApplications] = useState<any[]>([]);
@@ -10,7 +11,9 @@ const Installed = () => {
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${backendUrl}/api/applications`);
+      const user = auth.currentUser;
+      const userIdParam = user ? `?userId=${user.uid}` : '';
+      const res = await fetch(`${backendUrl}/api/applications${userIdParam}`);
       if (res.ok) {
         const data = await res.json();
         // Show Installed, TempCertUploaded, RTOApproved
@@ -27,7 +30,14 @@ const Installed = () => {
   };
 
   useEffect(() => {
-    fetchApplications();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        fetchApplications();
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleRtoApprove = async (id: string) => {
@@ -46,22 +56,16 @@ const Installed = () => {
     }
   };
 
-  const handleDownload = async (url: string, filename: string) => {
+  const handleDownload = async (appId: string, vehicleNo: string) => {
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const user = auth.currentUser;
+      const downloadUrl = `${backendUrl}/api/applications/${appId}/download-certificate?type=temp&userId=${user?.uid || ''}`;
       
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      // Navigate to the download URL directly to trigger the browser's native download
+      window.location.href = downloadUrl;
     } catch (err) {
-      console.error("Error downloading file", err);
-      window.open(url, '_blank');
+      console.error("Error downloading file securely", err);
+      alert('Failed to download certificate securely.');
     }
   };
 
@@ -125,11 +129,7 @@ const Installed = () => {
                       {app.tempCertUrl ? (
                         <button 
                           onClick={() => {
-                            // Extract filename from URL (e.g. genz.pdf)
-                            let filename = app.tempCertUrl.split('/').pop() || `Temp_Certificate_${app.vehicleNo}.pdf`;
-                            // Remove any query parameters if present
-                            filename = filename.split('?')[0];
-                            handleDownload(app.tempCertUrl, filename);
+                            handleDownload(app.id, app.vehicleNo);
                           }}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >

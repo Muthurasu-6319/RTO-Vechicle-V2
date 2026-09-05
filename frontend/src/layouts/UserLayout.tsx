@@ -19,6 +19,16 @@ import {
 const UserLayout = () => {
   const navigate = useNavigate();
   const [certMenuOpen, setCertMenuOpen] = React.useState(false);
+  const [userName, setUserName] = React.useState('');
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUserName(user.displayName || 'Dealer');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -34,7 +44,7 @@ const UserLayout = () => {
           <img src={logo} alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           <div>
             <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-color)', margin: 0 }}>V LINK PORTAL</h1>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>User Panel</p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>Dealer Panel</p>
           </div>
         </div>
 
@@ -103,7 +113,8 @@ const UserLayout = () => {
 
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: '2rem', height: '100vh', overflowY: 'auto', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '1.5rem', right: '2rem', zIndex: 10 }}>
+        <div style={{ position: 'absolute', top: '1.5rem', right: '2rem', zIndex: 10, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Welcome, {userName}</span>
           <NotificationBell isAdmin={false} />
         </div>
         <Outlet />

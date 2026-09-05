@@ -20,6 +20,11 @@ const ApplyCertificate = () => {
 
   const [isScanning, setIsScanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({
+    imei: '',
+    vldSerial: '',
+    vehicleNo: ''
+  });
 
   // Dynamic Settings
   const [manufacturers, setManufacturers] = useState<string[]>([]);
@@ -83,6 +88,72 @@ const ApplyCertificate = () => {
     }
   }, [formData.registrationDate]);
 
+  // Logic to calculate Manufacturer based on VLD S.No
+  useEffect(() => {
+    const upperVld = formData.vldSerial.toUpperCase();
+    
+    const getExactManu = (searchStr: string) => manufacturers.find(m => m.toUpperCase().includes(searchStr)) || '';
+    const getExactHitech = () => manufacturers.find(m => {
+      const u = m.toUpperCase().replace(/\s/g, '');
+      return u.includes('HITECH') || u.includes('HITEH') || u.includes('HIITECH');
+    }) || '';
+
+    if (upperVld.startsWith('IRSN') || upperVld.startsWith('IRNS')) {
+      const exactMercyda = getExactManu('MERCYDA');
+      if (exactMercyda && formData.manufacturer !== exactMercyda) {
+        setFormData(prev => ({ ...prev, manufacturer: exactMercyda }));
+      }
+    } else if (upperVld.startsWith('HITECH') || upperVld.startsWith('HITEH')) {
+      const exactHitech = getExactHitech();
+      if (exactHitech && formData.manufacturer !== exactHitech) {
+        setFormData(prev => ({ ...prev, manufacturer: exactHitech }));
+      }
+    } else {
+      const exactHitech = getExactHitech();
+      const exactMercyda = getExactManu('MERCYDA');
+      if (exactHitech && (formData.manufacturer === exactMercyda || formData.manufacturer === '')) {
+        setFormData(prev => ({ ...prev, manufacturer: exactHitech }));
+      }
+    }
+  }, [formData.vldSerial, manufacturers]);
+
+  // Real-time Validation for Uniqueness
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const payload = {
+        imei: formData.imei.length === 15 ? formData.imei : '',
+        vldSerial: formData.vldSerial.length >= 3 ? formData.vldSerial : '',
+        vehicleNo: formData.vehicleNo.length >= 4 ? formData.vehicleNo : ''
+      };
+
+      if (!payload.imei && !payload.vldSerial && !payload.vehicleNo) {
+        setErrors({ imei: '', vldSerial: '', vehicleNo: '' });
+        return;
+      }
+
+      try {
+        const res = await fetch(`${backendUrl}/api/applications/check-unique`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setErrors({
+            imei: data.imeiExists ? 'IMEI already exists in the system.' : '',
+            vldSerial: data.vldExists ? 'VLD S.No already exists in the system.' : '',
+            vehicleNo: data.vehicleExists ? 'Vehicle No already exists in the system.' : ''
+          });
+        }
+      } catch (err) {
+        console.error('Failed to check uniqueness', err);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [formData.imei, formData.vldSerial, formData.vehicleNo, backendUrl]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
@@ -99,19 +170,33 @@ const ApplyCertificate = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleBarcodeUploadSuccess = (url: string) => {
+  const handleBarcodeUploadSuccess = async (url: string) => {
     setFormData(prev => ({ ...prev, barcodeUrl: url }));
     
-    // Mocking the AI Scan delay
     setIsScanning(true);
-    setTimeout(() => {
-      setFormData(prev => ({ 
-        ...prev, 
-        imei: '868123456789012', 
-        vldSerial: 'VLD-9982-XYZ' 
-      }));
+    try {
+      const res = await fetch(`${backendUrl}/api/scan-barcode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: url })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(prev => ({
+          ...prev,
+          imei: data.imei || prev.imei,
+          vldSerial: data.vldSerial || prev.vldSerial
+        }));
+      } else {
+        console.error('Failed to scan barcode', await res.text());
+        alert('Failed to auto-scan barcode. Please enter details manually.');
+      }
+    } catch (err) {
+      console.error('Scan error:', err);
+      alert('Network error while scanning barcode.');
+    } finally {
       setIsScanning(false);
-    }, 1500);
+    }
   };
 
   const handleRcUploadSuccess = (url: string) => {
@@ -127,18 +212,23 @@ const ApplyCertificate = () => {
     
     // Quota Enforcement - 1 Year
     if (formData.validity === '1 Year' && quota && quota.remainingQuota <= 0) {
-      alert('Limit reached! You have exhausted your Stock limit. Please contact admin for more quantity.');
+      alert('Limit reached! You have exhausted your 1 Year limit. Please contact admin for more quantity.');
       return;
     }
 
     // Quota Enforcement - 2 Years
     if (formData.validity === '2 Years' && quota && quota.remainingQuota2Year <= 0) {
-      alert('Limit reached! You have exhausted your Subscription limit. Please subscribe for more quantity.');
+      alert('Limit reached! You have exhausted your 2 Years limit. Please subscribe for more quantity.');
       return;
     }
 
     if (formData.imei.length !== 15) {
       alert('IMEI Number must be exactly 15 characters long.');
+      return;
+    }
+    
+    if (errors.imei || errors.vldSerial || errors.vehicleNo) {
+      alert('Please fix the errors before submitting. Some items already exist.');
       return;
     }
     
@@ -236,7 +326,7 @@ const ApplyCertificate = () => {
               fontWeight: 600,
               textAlign: 'center'
             }}>
-              Limit reached! You cannot submit another Stock certificate. Please contact admin for more quota.
+              Limit reached! You cannot submit another 1 Year certificate. Please contact admin for more quota.
             </div>
           )}
 
@@ -252,7 +342,7 @@ const ApplyCertificate = () => {
               fontWeight: 600,
               textAlign: 'center'
             }}>
-              Limit reached! You cannot submit another Subscription certificate. Please subscribe for additional quota.
+              Limit reached! You cannot submit another 2 Years certificate. Please subscribe for additional quota.
             </div>
           )}
 
@@ -260,7 +350,7 @@ const ApplyCertificate = () => {
         {quota && formData.validity === '1 Year' && (
           <div style={{ padding: '1rem', backgroundColor: quota.remainingQuota <= 5 ? '#fee2e2' : '#e0e7ff', borderRadius: '0.5rem', marginBottom: '1.5rem', border: `1px solid ${quota.remainingQuota <= 5 ? '#f87171' : '#818cf8'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h4 style={{ fontWeight: 600, color: quota.remainingQuota <= 5 ? '#991b1b' : '#3730a3', margin: 0 }}>Total Stocks</h4>
+              <h4 style={{ fontWeight: 600, color: quota.remainingQuota <= 5 ? '#991b1b' : '#3730a3', margin: 0 }}>Total 1 Year Quota</h4>
               <p style={{ margin: 0, fontSize: '0.875rem', color: quota.remainingQuota <= 5 ? '#b91c1c' : '#4f46e5' }}>Total Allocated: {quota.totalQuota} | Used: {quota.usedQuota}</p>
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: quota.remainingQuota <= 0 ? '#ef4444' : '#4f46e5' }}>
@@ -273,7 +363,7 @@ const ApplyCertificate = () => {
         {quota && formData.validity === '2 Years' && (
           <div style={{ padding: '1rem', backgroundColor: quota.remainingQuota2Year <= 5 ? '#fee2e2' : '#f3e8ff', borderRadius: '0.5rem', marginBottom: '1.5rem', border: `1px solid ${quota.remainingQuota2Year <= 5 ? '#f87171' : '#a78bfa'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h4 style={{ fontWeight: 600, color: quota.remainingQuota2Year <= 5 ? '#991b1b' : '#5b21b6', margin: 0 }}>Additional Subscriptions</h4>
+              <h4 style={{ fontWeight: 600, color: quota.remainingQuota2Year <= 5 ? '#991b1b' : '#5b21b6', margin: 0 }}>Total 2 Years Quota</h4>
               <p style={{ margin: 0, fontSize: '0.875rem', color: quota.remainingQuota2Year <= 5 ? '#b91c1c' : '#7c3aed' }}>Total Allocated: {quota.totalQuota2Year} | Used: {quota.usedQuota2Year}</p>
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: quota.remainingQuota2Year <= 0 ? '#ef4444' : '#7c3aed' }}>
@@ -291,8 +381,9 @@ const ApplyCertificate = () => {
                 type="text" name="imei" value={formData.imei} onChange={handleChange} required 
                 placeholder="15-character IMEI"
                 disabled={quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0))}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${errors.imei ? '#ef4444' : '#e2e8f0'}`, backgroundColor: '#f8fafc' }} 
               />
+              {errors.imei && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 500 }}>{errors.imei}</span>}
             </div>
             
             <div>
@@ -300,8 +391,9 @@ const ApplyCertificate = () => {
               <input 
                 type="text" name="vldSerial" value={formData.vldSerial} onChange={handleChange} required 
                 disabled={quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0))}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${errors.vldSerial ? '#ef4444' : '#e2e8f0'}`, backgroundColor: '#f8fafc' }} 
               />
+              {errors.vldSerial && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 500 }}>{errors.vldSerial}</span>}
             </div>
 
             <div>
@@ -310,9 +402,13 @@ const ApplyCertificate = () => {
                 type="text" name="vehicleNo" value={formData.vehicleNo} onChange={handleChange} required 
                 placeholder="TN01AB1234"
                 disabled={quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0))}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', textTransform: 'uppercase' }} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${errors.vehicleNo ? '#ef4444' : '#e2e8f0'}`, textTransform: 'uppercase' }} 
               />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max 10 characters</span>
+              {errors.vehicleNo ? (
+                <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 500 }}>{errors.vehicleNo}</span>
+              ) : (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max 10 characters</span>
+              )}
             </div>
 
             <div>
@@ -331,8 +427,8 @@ const ApplyCertificate = () => {
                 disabled={true}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
               >
-                <option value="1 Year">Stock</option>
-                <option value="2 Years">Subscription</option>
+                <option value="1 Year">1 Year</option>
+                <option value="2 Years">2 Years</option>
               </select>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-calculated based on Reg Date</span>
             </div>

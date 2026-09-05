@@ -4,6 +4,7 @@ const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
 const cloudinary = require('cloudinary').v2;
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 // Configure Cloudinary
@@ -81,6 +82,48 @@ app.get('/api/cloudinary/sign', (req, res) => {
   }, process.env.CLOUDINARY_API_SECRET);
 
   res.json({ timestamp, signature, folder, use_filename: 'true', unique_filename: 'false' });
+});
+
+// Gemini OCR Route
+app.post('/api/scan-barcode', async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) return res.status(400).json({ error: 'No image URL provided' });
+
+    // Download the image
+    const imageResp = await fetch(imageUrl);
+    const arrayBuffer = await imageResp.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+
+    const prompt = `Extract the IMEI number (typically 15 digits) and the VLD Serial Number (typically alphanumeric starting with VLD or similar) from this image. 
+    Return ONLY a valid JSON object without any markdown formatting or extra text. 
+    Example format: {"imei": "123456789012345", "vldSerial": "VLD-1234-XYZ"}`;
+
+    const imageParts = [
+      {
+        inlineData: {
+          data: buffer.toString("base64"),
+          mimeType
+        }
+      }
+    ];
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const responseText = result.response.text();
+    
+    // Clean up potential markdown wrapper from response
+    const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsedData = JSON.parse(jsonStr);
+
+    res.json(parsedData);
+  } catch (error) {
+    console.error('OCR Error:', error);
+    res.status(500).json({ error: 'Failed to extract data from image' });
+  }
 });
 
 // Admin Authentication Route
@@ -309,6 +352,32 @@ app.get('/api/stats/admin', async (req, res) => {
 
 // --- APPLICATIONS ROUTES --- //
 
+// Check if IMEI, VLD S.No, or Vehicle No already exists
+app.post('/api/applications/check-unique', async (req, res) => {
+  try {
+    const { imei, vldSerial, vehicleNo } = req.body;
+    const result = { imeiExists: false, vldExists: false, vehicleExists: false };
+
+    if (imei) {
+      const imeiSnap = await db.collection('applications').where('imei', '==', imei).get();
+      result.imeiExists = !imeiSnap.empty;
+    }
+    if (vldSerial) {
+      const vldSnap = await db.collection('applications').where('vldSerial', '==', vldSerial).get();
+      result.vldExists = !vldSnap.empty;
+    }
+    if (vehicleNo) {
+      const vehicleSnap = await db.collection('applications').where('vehicleNo', '==', vehicleNo).get();
+      result.vehicleExists = !vehicleSnap.empty;
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error checking uniqueness:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create Application (User)
 app.post('/api/applications', async (req, res) => {
   try {
@@ -347,10 +416,10 @@ app.post('/api/applications', async (req, res) => {
   }
 });
 
-// Get All Applications (Admin)
+// Get All Applications (Admin/User)
 app.get('/api/applications', async (req, res) => {
   try {
-    const { manufacturer } = req.query;
+    const { manufacturer, userId } = req.query;
     let query = db.collection('applications').orderBy('createdAt', 'desc');
 
     const snapshot = await query.get();
@@ -358,10 +427,11 @@ app.get('/api/applications', async (req, res) => {
     
     snapshot.forEach(doc => {
       const data = doc.data();
-      // Filter in memory if manufacturer is provided
-      if (!manufacturer || data.manufacturer === manufacturer) {
-        applications.push({ id: doc.id, ...data });
-      }
+      // Filter in memory
+      if (manufacturer && data.manufacturer !== manufacturer) return;
+      if (userId && data.userId !== userId) return;
+      
+      applications.push({ id: doc.id, ...data });
     });
     
     res.json(applications);
@@ -463,6 +533,55 @@ app.put('/api/applications/:id/vahan-cert', async (req, res) => {
   } catch (error) {
     console.error('Error uploading vahan cert:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Securely Download Certificate without exposing Cloudinary URL
+app.get('/api/applications/:id/download-certificate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, type } = req.query; // type can be 'temp' or 'vahan'
+
+    const docRef = db.collection('applications').doc(id);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    const appData = docSnap.data();
+
+    // Determine which URL to use based on type
+    let cloudinaryUrl = appData.vahanCertUrl;
+    let fileNamePrefix = 'Vahan_Certificate';
+    
+    if (type === 'temp') {
+      cloudinaryUrl = appData.tempCertUrl;
+      fileNamePrefix = 'Temp_Certificate';
+    }
+
+    if (!cloudinaryUrl) {
+      return res.status(404).json({ error: 'Certificate not available' });
+    }
+
+    // Fetch from Cloudinary
+    const fetchResponse = await fetch(cloudinaryUrl);
+    if (!fetchResponse.ok) {
+      const errorText = await fetchResponse.text();
+      throw new Error(`Cloudinary Error: ${fetchResponse.status} ${fetchResponse.statusText} | URL: ${cloudinaryUrl} | Body: ${errorText}`);
+    }
+
+    const contentType = fetchResponse.headers.get('content-type') || 'application/pdf';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileNamePrefix}_${appData.vehicleNo || 'Document'}.pdf"`);
+
+    // Stream the response to the client
+    const buffer = await fetchResponse.arrayBuffer();
+    res.send(Buffer.from(buffer));
+
+  } catch (error) {
+    console.error('Error downloading certificate securely:', error);
+    res.status(500).json({ error: 'Failed to download securely', details: error.message, stack: error.stack });
   }
 });
 
