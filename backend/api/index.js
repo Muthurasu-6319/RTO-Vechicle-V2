@@ -325,7 +325,7 @@ app.get('/api/stats/admin', async (req, res) => {
     const pendingSnapshot = await db.collection('applications').where('status', '==', 'Pending').count().get();
     const pendingApps = pendingSnapshot.data().count;
 
-    const certifiedSnapshot = await db.collection('applications').where('status', '==', 'Approved').count().get();
+    const certifiedSnapshot = await db.collection('applications').where('status', '==', 'Certified').count().get();
     const certifiedApps = certifiedSnapshot.data().count;
 
     const ordersSnapshot = await db.collection('orders').count().get();
