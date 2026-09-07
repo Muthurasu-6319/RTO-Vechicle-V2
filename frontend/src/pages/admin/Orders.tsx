@@ -4,6 +4,7 @@ import { PlusCircle, Search, Edit3, Trash2 } from 'lucide-react';
 const Orders = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -27,15 +28,21 @@ const Orders = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, usersRes] = await Promise.all([
+      const [ordersRes, usersRes, settingsRes] = await Promise.all([
         fetch(`${backendUrl}/api/orders`),
-        fetch(`${backendUrl}/api/users`)
+        fetch(`${backendUrl}/api/users`),
+        fetch(`${backendUrl}/api/settings`)
       ]);
       
       if (ordersRes.ok && usersRes.ok) {
         setOrders(await ordersRes.json());
         const usersData = await usersRes.json();
         setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+      }
+      
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        setManufacturers(settingsData.manufacturers || []);
       }
     } catch (err) {
       console.error(err);
@@ -204,7 +211,7 @@ const Orders = () => {
                 <tr style={{ borderBottom: '2px solid #e2e8f0', color: 'var(--text-secondary)' }}>
                   <th style={{ padding: '1rem 0.5rem' }}>Order ID</th>
                   <th style={{ padding: '1rem 0.5rem' }}>User</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>Item</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Manufacturer</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Batch</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Quantity</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Ordered Date</th>
@@ -300,8 +307,16 @@ const Orders = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Item</label>
-                  <input type="text" name="item" value={formData.item} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
+                  <select 
+                    name="item" value={formData.item} onChange={handleChange} required 
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="">-- Choose Manufacturer --</option>
+                    {manufacturers.map((m, idx) => (
+                      <option key={idx} value={m}>{m}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Batch</label>

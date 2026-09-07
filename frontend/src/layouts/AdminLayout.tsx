@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  Package
+  Package,
+  ShoppingCart
 } from 'lucide-react';
 import './AdminLayout.css';
 
@@ -39,6 +40,7 @@ const AdminLayout = () => {
     { name: 'Certificates', path: '/admin/certificates', icon: <Award size={20} /> },
     { name: 'Approved', path: '/admin/approved', icon: <CheckCircle size={20} /> },
     { name: 'Orders', path: '/admin/orders', icon: <Package size={20} /> },
+    { name: 'Purchase Entry', path: '/admin/purchase-entry', icon: <ShoppingCart size={20} /> },
     { name: 'Subscriptions', path: '/admin/subscriptions', icon: <CreditCard size={20} /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
@@ -55,7 +57,7 @@ const AdminLayout = () => {
       <aside className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img src={logo} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+            <img src={logo} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '50%' }} />
             <h2 style={{ fontSize: '1.25rem', margin: 0 }}>V LINK PORTAL</h2>
           </div>
           <button className="mobile-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>

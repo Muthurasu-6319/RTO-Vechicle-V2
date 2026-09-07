@@ -11,6 +11,7 @@ import ApprovedApplications from './pages/admin/ApprovedApplications';
 import Orders from './pages/admin/Orders';
 import Subscriptions from './pages/admin/Subscriptions';
 import Settings from './pages/admin/Settings';
+import PurchaseEntry from './pages/admin/PurchaseEntry';
 import UserLogin from './pages/auth/UserLogin';
 import UserLayout from './layouts/UserLayout';
 import UserDashboard from './pages/user/UserDashboard';
@@ -61,6 +62,7 @@ function App() {
           <Route path="certificates" element={<Certificates />} />
           <Route path="approved" element={<ApprovedApplications />} />
           <Route path="orders" element={<Orders />} />
+          <Route path="purchase-entry" element={<PurchaseEntry />} />
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="settings" element={<Settings />} />
         </Route>

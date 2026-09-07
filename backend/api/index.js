@@ -472,16 +472,45 @@ app.put('/api/applications/:id/approve', async (req, res) => {
   }
 });
 
+// Delete Application
+app.delete('/api/applications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('applications').doc(id).delete();
+    res.json({ message: 'Application deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting application:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin Uploads Temp Certificate
 app.put('/api/applications/:id/temp-cert', async (req, res) => {
   try {
     const { id } = req.params;
     const { tempCertUrl } = req.body;
+
+    // Fetch application to get userId and vehicleNo
+    const appDoc = await db.collection('applications').doc(id).get();
+    const appData = appDoc.exists ? appDoc.data() : null;
+
     await db.collection('applications').doc(id).update({
       status: 'TempCertUploaded',
       tempCertUrl: tempCertUrl,
       tempCertUploadedAt: new Date().toISOString()
     });
+
+    // Send notification to user
+    if (appData && appData.userId) {
+      await db.collection('notifications').add({
+        userId: appData.userId,
+        title: 'Temporary Certificate Ready',
+        message: `Your Temporary Certificate for vehicle ${appData.vehicleNo || 'Unknown'} is ready. Please check your Installed section.`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     res.json({ message: 'Temporary Certificate uploaded successfully' });
   } catch (error) {
     console.error('Error uploading temp cert:', error);
@@ -540,7 +569,7 @@ app.put('/api/applications/:id/vahan-cert', async (req, res) => {
 app.get('/api/applications/:id/download-certificate', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, type } = req.query; // type can be 'temp' or 'vahan'
+    const { type } = req.query;
 
     const docRef = db.collection('applications').doc(id);
     const docSnap = await docRef.get();
@@ -551,10 +580,8 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 
     const appData = docSnap.data();
 
-    // Determine which URL to use based on type
     let cloudinaryUrl = appData.vahanCertUrl;
     let fileNamePrefix = 'Vahan_Certificate';
-    
     if (type === 'temp') {
       cloudinaryUrl = appData.tempCertUrl;
       fileNamePrefix = 'Temp_Certificate';
@@ -564,24 +591,31 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
       return res.status(404).json({ error: 'Certificate not available' });
     }
 
-    // Fetch from Cloudinary
-    const fetchResponse = await fetch(cloudinaryUrl);
-    if (!fetchResponse.ok) {
-      const errorText = await fetchResponse.text();
-      throw new Error(`Cloudinary Error: ${fetchResponse.status} ${fetchResponse.statusText} | URL: ${cloudinaryUrl} | Body: ${errorText}`);
+    const filename = `${fileNamePrefix}_${appData.vehicleNo || 'Document'}.pdf`;
+
+    // Extract public_id (keep extension for raw resources)
+    const match = cloudinaryUrl.match(/\/upload\/(?:v\d+\/)?(.+)$/);
+    const publicId = match ? match[1] : null;
+
+    if (!publicId) {
+      // Fallback: return original URL
+      return res.json({ downloadUrl: cloudinaryUrl, filename });
     }
 
-    const contentType = fetchResponse.headers.get('content-type') || 'application/pdf';
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${fileNamePrefix}_${appData.vehicleNo || 'Document'}.pdf"`);
+    // Generate signed URL for browser-side download
+    const signedUrl = cloudinary.url(publicId, {
+      resource_type: 'raw',
+      sign_url: true,
+      secure: true,
+      type: 'upload'
+    });
 
-    // Stream the response to the client
-    const buffer = await fetchResponse.arrayBuffer();
-    res.send(Buffer.from(buffer));
+    console.log('Returning signed URL for browser download:', publicId);
+    res.json({ downloadUrl: signedUrl, filename });
 
   } catch (error) {
-    console.error('Error downloading certificate securely:', error);
-    res.status(500).json({ error: 'Failed to download securely', details: error.message, stack: error.stack });
+    console.error('Error generating download URL:', error.message);
+    res.status(500).json({ error: 'Failed to generate download URL', details: error.message });
   }
 });
 
@@ -979,6 +1013,92 @@ app.get('/api/download', async (req, res) => {
   } catch (error) {
     console.error('Download proxy error:', error);
     res.status(500).json({ error: 'Error downloading file' });
+  }
+});
+
+// --- Purchase Entries API ---
+
+// Get all purchase entries
+app.get('/api/purchase-entries', async (req, res) => {
+  try {
+    const snapshot = await db.collection('purchaseEntries').orderBy('date', 'desc').get();
+    const entries = [];
+    snapshot.forEach(doc => {
+      entries.push({ id: doc.id, ...doc.data() });
+    });
+    res.json(entries);
+  } catch (error) {
+    console.error('Error fetching purchase entries:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get manufacturer stock stats dynamically
+app.get('/api/stats/manufacturer-stock', async (req, res) => {
+  try {
+    const [purchaseSnap, orderSnap] = await Promise.all([
+      db.collection('purchaseEntries').get(),
+      db.collection('orders').get()
+    ]);
+    
+    const stockMap = {}; // { 'Manufacturer A': { totalPurchased: 0, totalAllocated: 0, currentStock: 0 } }
+    
+    // Add up all purchases (incoming stock)
+    purchaseSnap.forEach(doc => {
+      const data = doc.data();
+      const mfg = data.manufacturer;
+      const qty = Number(data.quantity) || 0;
+      if (mfg && qty > 0) {
+        if (!stockMap[mfg]) stockMap[mfg] = { totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+        stockMap[mfg].totalPurchased += qty;
+      }
+    });
+    
+    // Subtract all allocations (orders given to users)
+    orderSnap.forEach(doc => {
+      const data = doc.data();
+      const mfg = data.item; // Remember in Orders we changed 'item' to represent Manufacturer
+      const qty = Number(data.quantity) || 0;
+      if (mfg && qty > 0) {
+        if (!stockMap[mfg]) stockMap[mfg] = { totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+        stockMap[mfg].totalAllocated += qty;
+      }
+    });
+    
+    // Calculate current stock
+    for (const mfg in stockMap) {
+      stockMap[mfg].currentStock = stockMap[mfg].totalPurchased - stockMap[mfg].totalAllocated;
+    }
+    
+    res.json(stockMap);
+  } catch (error) {
+    console.error('Error calculating manufacturer stock:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new purchase entry
+app.post('/api/purchase-entries', async (req, res) => {
+  try {
+    const data = req.body;
+    data.createdAt = new Date().toISOString();
+    const docRef = await db.collection('purchaseEntries').add(data);
+    res.status(201).json({ id: docRef.id, message: 'Purchase entry added successfully' });
+  } catch (error) {
+    console.error('Error adding purchase entry:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a purchase entry
+app.delete('/api/purchase-entries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('purchaseEntries').doc(id).delete();
+    res.json({ message: 'Purchase entry deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting purchase entry:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

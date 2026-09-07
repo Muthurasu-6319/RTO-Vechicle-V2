@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, X, Copy, Check, Search } from 'lucide-react';
+import { FileText, CheckCircle, Clock, X, Copy, Check, Search, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Applications = () => {
+  const navigate = useNavigate();
   const [applications, setApplications] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
@@ -17,12 +20,18 @@ const Applications = () => {
       const url = adminManufacturer 
         ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
         : `${backendUrl}/api/applications`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        // Filter to only show Pending applications
+      const [appsRes, usersRes] = await Promise.all([
+        fetch(url),
+        fetch(`${backendUrl}/api/users`)
+      ]);
+      if (appsRes.ok) {
+        const data = await appsRes.json();
         const pendingApps = data.filter((app: any) => app.status === 'Pending');
         setApplications(pendingApps);
+      }
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData);
       }
     } catch (err) {
       console.error(err);
@@ -34,6 +43,25 @@ const Applications = () => {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  // Get user name from users list by userId
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.id === userId || u.uid === userId);
+    return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
+  };
+
+  // Format createdAt ISO string to readable date + time
+  const formatDateTime = (isoStr: string) => {
+    if (!isoStr) return '—';
+    try {
+      const date = new Date(isoStr);
+      const d = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const t = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${d}, ${t}`;
+    } catch {
+      return isoStr;
+    }
+  };
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -49,7 +77,7 @@ const Applications = () => {
       });
       if (res.ok) {
         setSelectedApp(null);
-        fetchApplications();
+        navigate('/admin/certificates');
       } else {
         alert('Failed to approve application');
       }
@@ -68,7 +96,7 @@ const Applications = () => {
   });
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>Applications</h2>
@@ -106,7 +134,7 @@ const Applications = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Mobile</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg Date</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>Applied On</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Applied By</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -122,16 +150,22 @@ const Applications = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{app.mobileNumber}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.registrationDate}</td>
-                    <td style={{ padding: '1rem 0.5rem' }}>
-                      <span style={{ 
-                        padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.875rem', fontWeight: 500,
-                        backgroundColor: '#fef3c7',
-                        color: '#b45309'
-                      }}>
-                        <Clock size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }}/>
-                        Pending
-                      </span>
+
+                    {/* Applied By - User Name + Date/Time */}
+                    <td style={{ padding: '1rem 0.5rem', minWidth: '160px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+                        <User size={14} color="#8b5cf6" style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#1e293b' }}>
+                            {getUserName(app.userId)}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                            {formatDateTime(app.createdAt)}
+                          </div>
+                        </div>
+                      </div>
                     </td>
+
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                       <button 
                         onClick={() => setSelectedApp(app)}
@@ -159,6 +193,19 @@ const Applications = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>Application Details</h3>
               <button onClick={() => setSelectedApp(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={24} /></button>
+            </div>
+
+            {/* Applied By Info Banner */}
+            <div style={{ backgroundColor: '#f3e8ff', border: '1px solid #c4b5fd', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <User size={18} color="#7c3aed" />
+              <div>
+                <p style={{ fontWeight: 700, color: '#5b21b6', margin: 0, fontSize: '0.9rem' }}>
+                  {getUserName(selectedApp.userId)}
+                </p>
+                <p style={{ color: '#7c3aed', margin: 0, fontSize: '0.8rem' }}>
+                  Applied on: {formatDateTime(selectedApp.createdAt)}
+                </p>
+              </div>
             </div>
             
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>

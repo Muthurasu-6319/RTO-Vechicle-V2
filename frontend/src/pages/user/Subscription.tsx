@@ -4,23 +4,25 @@ import { auth } from '../../firebase';
 
 const Subscription = () => {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [quota, setQuota] = useState<{ totalQuota2Year: number; usedQuota2Year: number; remainingQuota2Year: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
-    const fetchSubs = async () => {
-      const user = auth.currentUser;
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
+    const fetchData = async (user: any) => {
       try {
-        const res = await fetch(`${backendUrl}/api/subscriptions/user/${user.uid}`);
-        if (res.ok) {
-          const data = await res.json();
+        const [subsRes, quotaRes] = await Promise.all([
+          fetch(`${backendUrl}/api/subscriptions/user/${user.uid}`),
+          fetch(`${backendUrl}/api/users/${user.uid}/quota`)
+        ]);
+        if (subsRes.ok) {
+          const data = await subsRes.json();
           setSubscriptions(data);
+        }
+        if (quotaRes.ok) {
+          const qData = await quotaRes.json();
+          setQuota(qData);
         }
       } catch (err) {
         console.error('Failed to fetch subscriptions', err);
@@ -31,7 +33,7 @@ const Subscription = () => {
 
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        fetchSubs();
+        fetchData(user);
       } else {
         setLoading(false);
       }
@@ -43,8 +45,8 @@ const Subscription = () => {
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Subscriptions</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>View your subscription certificates and allocated quotas.</p>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Additional Subscription</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>View your additional subscription certificates and allocated quotas.</p>
       </div>
 
       {loading ? (
@@ -54,19 +56,24 @@ const Subscription = () => {
       ) : subscriptions.length === 0 ? (
         <div className="glass-panel" style={{ padding: '3rem', borderRadius: '1rem', textAlign: 'center' }}>
           <CreditCard size={48} color="#94a3b8" style={{ marginBottom: '1rem' }} />
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Subscriptions</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>You don't have any active subscriptions. Contact your admin for subscription certificate access.</p>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Additional Subscriptions</h3>
+          <p style={{ color: 'var(--text-secondary)' }}>You don't have any additional subscriptions. Contact your admin for subscription certificate access.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Summary Banner */}
           <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f3e8ff', border: '1px solid #a78bfa' }}>
             <div>
-              <h4 style={{ fontWeight: 600, color: '#5b21b6', margin: 0 }}>Total Subscription Quota</h4>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#7c3aed' }}>Sum of all subscription counts</p>
+              <h4 style={{ fontWeight: 600, color: '#5b21b6', margin: 0 }}>Additional Subscription Quota</h4>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#7c3aed' }}>
+                Total: {subscriptions.reduce((sum, s) => sum + Number(s.subscriptionCount || 0), 0)}
+                {quota && (
+                  <span> &nbsp;|&nbsp; Used: {quota.usedQuota2Year} &nbsp;|&nbsp; Remaining: <strong>{quota.remainingQuota2Year}</strong></span>
+                )}
+              </p>
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#7c3aed' }}>
-              {subscriptions.reduce((sum, s) => sum + Number(s.subscriptionCount || 0), 0)}
+              {quota ? quota.remainingQuota2Year : subscriptions.reduce((sum, s) => sum + Number(s.subscriptionCount || 0), 0)}
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Download, Search } from 'lucide-react';
+import { CheckCircle, Download, Search, Trash2 } from 'lucide-react';
 
 const ApprovedApplications = () => {
   const [applications, setApplications] = useState<any[]>([]);
@@ -39,6 +39,24 @@ const ApprovedApplications = () => {
       (app.vldSerial && app.vldSerial.toLowerCase().includes(q))
     );
   });
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this approved application?')) return;
+    try {
+      const res = await fetch(`${backendUrl}/api/applications/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        // Remove from local state immediately for better UX or re-fetch
+        setApplications(prev => prev.filter(app => app.id !== id));
+      } else {
+        alert('Failed to delete application.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting application.');
+    }
+  };
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
@@ -102,6 +120,14 @@ const ApprovedApplications = () => {
                           <Download size={16} /> View
                         </a>
                       )}
+                      
+                      <button 
+                        onClick={() => handleDelete(app.id)}
+                        title="Delete Application"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', marginLeft: '0.5rem' }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))}
