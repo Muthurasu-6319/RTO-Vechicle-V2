@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, CreditCard, FileText, CheckCircle } from 'lucide-react';
-import { auth } from '../../firebase';
+import { auth, db } from '../../firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const UserDashboard = () => {
   const [quota, setQuota] = useState({
@@ -12,10 +13,13 @@ const UserDashboard = () => {
     remainingQuota2Year: 0
   });
   const [loading, setLoading] = useState(true);
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [certifiedCount, setCertifiedCount] = useState(0);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
+    let unsubscribeSnapshot: (() => void) | null = null;
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
@@ -29,12 +33,28 @@ const UserDashboard = () => {
         }
       } catch (err) {
         console.error('Failed to fetch quota', err);
-      } finally {
-        setLoading(false);
       }
+      
+      const appsRef = collection(db, 'applications');
+      const q = query(appsRef, where('userId', '==', user.uid));
+      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const allApps = snapshot.docs.map(doc => doc.data());
+        
+        const appliedApps = allApps.filter((app: any) =>
+          ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+        );
+        const certifiedApps = allApps.filter((app: any) => app.status === 'Certified');
+        
+        setAppliedCount(appliedApps.length);
+        setCertifiedCount(certifiedApps.length);
+        setLoading(false);
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
 
   return (
@@ -64,7 +84,7 @@ const UserDashboard = () => {
           </div>
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Applied</h3>
-            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : quota.usedQuota + quota.usedQuota2Year}</p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : appliedCount}</p>
           </div>
         </div>
 
@@ -75,7 +95,7 @@ const UserDashboard = () => {
           </div>
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Certified</h3>
-            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>0</p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : certifiedCount}</p>
           </div>
         </div>
 

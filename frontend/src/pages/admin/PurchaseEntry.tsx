@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Search, Trash2, Download, Package } from 'lucide-react';
+import { PlusCircle, Search, Trash2, Download, Package, UserPlus } from 'lucide-react';
 
 const PurchaseEntry = () => {
   const [entries, setEntries] = useState<any[]>([]);
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [stockStats, setStockStats] = useState<Record<string, any>>({});
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [allocateModalOpen, setAllocateModalOpen] = useState(false);
+  const [selectedPurchaseEntry, setSelectedPurchaseEntry] = useState<any>(null);
+  const [allocateForm, setAllocateForm] = useState({
+    userId: '',
+    stockQty: '',
+    subQty: ''
+  });
   const [formData, setFormData] = useState({
     date: '',
     manufacturer: '',
@@ -22,10 +30,11 @@ const PurchaseEntry = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [entriesRes, settingsRes, statsRes] = await Promise.all([
+      const [entriesRes, settingsRes, statsRes, usersRes] = await Promise.all([
         fetch(`${backendUrl}/api/purchase-entries`),
         fetch(`${backendUrl}/api/settings`),
-        fetch(`${backendUrl}/api/stats/manufacturer-stock`)
+        fetch(`${backendUrl}/api/stats/manufacturer-stock`),
+        fetch(`${backendUrl}/api/users`)
       ]);
       
       if (entriesRes.ok) {
@@ -39,6 +48,10 @@ const PurchaseEntry = () => {
 
       if (statsRes.ok) {
         setStockStats(await statsRes.json());
+      }
+
+      if (usersRes.ok) {
+        setUsers(await usersRes.json());
       }
     } catch (err) {
       console.error(err);
@@ -101,6 +114,73 @@ const PurchaseEntry = () => {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const openAllocateModal = (entry: any) => {
+    setSelectedPurchaseEntry(entry);
+    setAllocateForm({ userId: '', stockQty: entry.quantity?.toString() || '0', subQty: entry.quantity?.toString() || '0' });
+    setAllocateModalOpen(true);
+  };
+
+  const handleAllocateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocateForm.userId) {
+      alert("Please select a User");
+      return;
+    }
+    
+    const user = users.find(u => u.id === allocateForm.userId);
+    const userName = user ? (user.fullName || user.name) : 'Unknown User';
+    const userEmail = user ? user.email : '';
+    
+    const stockQty = Number(allocateForm.stockQty);
+    const subQty = Number(allocateForm.subQty);
+    
+    try {
+      if (stockQty > 0) {
+        const orderData = {
+          userId: allocateForm.userId,
+          userName,
+          userEmail,
+          item: selectedPurchaseEntry.manufacturer,
+          quantity: stockQty,
+          orderedDate: new Date().toISOString().split('T')[0],
+          managerApproval: true,
+          accountsApproval: true,
+          dispatched: true,
+          batch: selectedPurchaseEntry.invoiceNo || '',
+          orderId: `ORD-${Date.now()}`
+        };
+        await fetch(`${backendUrl}/api/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData)
+        });
+      }
+
+      if (subQty > 0) {
+        const subData = {
+          userId: allocateForm.userId,
+          userName,
+          userEmail,
+          subscriptionCount: subQty,
+          date: new Date().toISOString().split('T')[0],
+          remarks: `Allocated from Purchase Entry: ${selectedPurchaseEntry.invoiceNo || 'N/A'}`
+        };
+        await fetch(`${backendUrl}/api/subscriptions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subData)
+        });
+      }
+      
+      alert("Stocks and Subscriptions allocated successfully!");
+      setAllocateModalOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("Allocation Error:", err);
+      alert("Failed to allocate.");
     }
   };
 
@@ -226,6 +306,13 @@ const PurchaseEntry = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.remarks || '-'}</td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
                       <button
+                        onClick={() => openAllocateModal(entry)}
+                        title="Allocate to User"
+                        style={{ padding: '0.4rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', marginRight: '0.5rem' }}
+                      >
+                        <UserPlus size={16} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(entry.id)}
                         title="Delete Entry"
                         style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
@@ -291,6 +378,58 @@ const PurchaseEntry = () => {
                 <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.75rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
                   Save Entry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {allocateModalOpen && selectedPurchaseEntry && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem'
+        }}>
+          <div className="glass-panel" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b' }}>Allocate to User</h3>
+              <button onClick={() => setAllocateModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
+            </div>
+            
+            <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' }}>
+              <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.25rem' }}><strong>Manufacturer:</strong> {selectedPurchaseEntry.manufacturer}</p>
+              <p style={{ fontSize: '0.875rem', color: '#475569' }}><strong>Available Qty in Entry:</strong> {selectedPurchaseEntry.quantity}</p>
+            </div>
+
+            <form onSubmit={handleAllocateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
+                <select 
+                  name="userId" value={allocateForm.userId} onChange={(e) => setAllocateForm(prev => ({ ...prev, userId: e.target.value }))} required 
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">-- Choose User --</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email || u.mobile})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Stock Quantity</label>
+                  <input type="number" min="0" value={allocateForm.stockQty} onChange={(e) => setAllocateForm(prev => ({ ...prev, stockQty: e.target.value }))} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Subscription Qty</label>
+                  <input type="number" min="0" value={allocateForm.subQty} onChange={(e) => setAllocateForm(prev => ({ ...prev, subQty: e.target.value }))} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button type="button" onClick={() => setAllocateModalOpen(false)} style={{ flex: 1, padding: '0.75rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
+                  Allocate
                 </button>
               </div>
             </form>

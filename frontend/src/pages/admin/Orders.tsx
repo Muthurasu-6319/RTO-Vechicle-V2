@@ -7,6 +7,7 @@ const Orders = () => {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [stockStats, setStockStats] = useState<Record<string, any>>({});
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
@@ -28,10 +29,11 @@ const Orders = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, usersRes, settingsRes] = await Promise.all([
+      const [ordersRes, usersRes, settingsRes, statsRes] = await Promise.all([
         fetch(`${backendUrl}/api/orders`),
         fetch(`${backendUrl}/api/users`),
-        fetch(`${backendUrl}/api/settings`)
+        fetch(`${backendUrl}/api/settings`),
+        fetch(`${backendUrl}/api/stats/manufacturer-stock`)
       ]);
       
       if (ordersRes.ok && usersRes.ok) {
@@ -43,6 +45,10 @@ const Orders = () => {
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setManufacturers(settingsData.manufacturers || []);
+      }
+
+      if (statsRes.ok) {
+        setStockStats(await statsRes.json());
       }
     } catch (err) {
       console.error(err);
@@ -97,11 +103,26 @@ const Orders = () => {
       alert("Please select a User.");
       return;
     }
+
+    const currentStock = stockStats[formData.item]?.currentStock || 0;
+    const requestedQty = Number(formData.quantity);
+    
+    // Calculate effective requested quantity based on whether we are editing or creating
+    let effectiveRequestedQty = requestedQty;
+    if (editingOrder && editingOrder.item === formData.item) {
+      // If editing same item, only the difference matters for stock
+      effectiveRequestedQty = requestedQty - Number(editingOrder.quantity || 0);
+    }
+    
+    if (effectiveRequestedQty > currentStock) {
+      alert(`No stock available for this manufacturer. Current available stock is ${currentStock}.`);
+      return;
+    }
     
     const user = users.find(u => u.id === formData.userId);
     const orderData = {
       ...formData,
-      quantity: Number(formData.quantity),
+      quantity: requestedQty,
       userName: user ? (user.fullName || user.name) : 'Unknown User',
       userEmail: user ? user.email : ''
     };
@@ -317,6 +338,11 @@ const Orders = () => {
                       <option key={idx} value={m}>{m}</option>
                     ))}
                   </select>
+                  {formData.item && (
+                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: (stockStats[formData.item]?.currentStock || 0) <= 0 ? '#ef4444' : '#10b981' }}>
+                      Available Stock: {stockStats[formData.item]?.currentStock || 0}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Batch</label>

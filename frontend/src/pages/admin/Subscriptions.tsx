@@ -5,6 +5,8 @@ import UploadButton from '../../components/UploadButton';
 const Subscriptions = () => {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [stockStats, setStockStats] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -12,6 +14,7 @@ const Subscriptions = () => {
   const [editingSub, setEditingSub] = useState<any>(null);
   const [formData, setFormData] = useState({
     userId: '',
+    manufacturer: '',
     consumerName: '',
     subscriptionCount: '',
     date: '',
@@ -24,15 +27,26 @@ const Subscriptions = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [subsRes, usersRes] = await Promise.all([
+      const [subsRes, usersRes, settingsRes, statsRes] = await Promise.all([
         fetch(`${backendUrl}/api/subscriptions`),
-        fetch(`${backendUrl}/api/users`)
+        fetch(`${backendUrl}/api/users`),
+        fetch(`${backendUrl}/api/settings`),
+        fetch(`${backendUrl}/api/stats/manufacturer-stock`)
       ]);
       
       if (subsRes.ok && usersRes.ok) {
         setSubscriptions(await subsRes.json());
         const usersData = await usersRes.json();
         setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+      }
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        setManufacturers(settingsData.manufacturers || []);
+      }
+
+      if (statsRes.ok) {
+        setStockStats(await statsRes.json());
       }
     } catch (err) {
       console.error(err);
@@ -47,7 +61,7 @@ const Subscriptions = () => {
 
   const resetForm = () => {
     setFormData({
-      userId: '', consumerName: '', subscriptionCount: '', date: '', invoicePdfUrl: '', approved: false
+      userId: '', manufacturer: '', consumerName: '', subscriptionCount: '', date: '', invoicePdfUrl: '', approved: false
     });
     setEditingSub(null);
   };
@@ -61,6 +75,7 @@ const Subscriptions = () => {
     setEditingSub(sub);
     setFormData({
       userId: sub.userId || '',
+      manufacturer: sub.manufacturer || '',
       consumerName: sub.consumerName || '',
       subscriptionCount: String(sub.subscriptionCount || ''),
       date: sub.date || '',
@@ -84,6 +99,23 @@ const Subscriptions = () => {
     e.preventDefault();
     if (!formData.userId) {
       alert("Please select a User.");
+      return;
+    }
+    if (!formData.manufacturer) {
+      alert("Please select a Manufacturer.");
+      return;
+    }
+
+    const currentStock = stockStats[formData.manufacturer]?.currentStock || 0;
+    const requestedQty = Number(formData.subscriptionCount);
+    
+    let effectiveRequestedQty = requestedQty;
+    if (editingSub && editingSub.manufacturer === formData.manufacturer) {
+      effectiveRequestedQty = requestedQty - Number(editingSub.subscriptionCount || 0);
+    }
+    
+    if (effectiveRequestedQty > currentStock) {
+      alert(`No stock available for this manufacturer. Current available stock is ${currentStock}.`);
       return;
     }
     
@@ -265,21 +297,38 @@ const Subscriptions = () => {
             </div>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
-                <select 
-                  name="userId" value={formData.userId} onChange={handleChange} required
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                >
-                  <option value="">-- Choose User --</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email})</option>
-                  ))}
-                </select>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Subscription count sets the subscription quota for the user.</p>
-              </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
+                  <select 
+                    name="userId" value={formData.userId} onChange={handleChange} required
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="">-- Choose User --</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email})</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
+                  <select 
+                    name="manufacturer" value={formData.manufacturer} onChange={handleChange} required 
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="">-- Choose Manufacturer --</option>
+                    {manufacturers.map((m, idx) => (
+                      <option key={idx} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  {formData.manufacturer && (
+                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: (stockStats[formData.manufacturer]?.currentStock || 0) <= 0 ? '#ef4444' : '#10b981' }}>
+                      Available Stock: {stockStats[formData.manufacturer]?.currentStock || 0}
+                    </p>
+                  )}
+                </div>
+
+                <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Consumer Name</label>
                 <input type="text" name="consumerName" value={formData.consumerName} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
               </div>

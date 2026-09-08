@@ -31,12 +31,6 @@ const Installed = () => {
         // Sort by createdAt descending in memory (avoids Firestore composite index)
         allApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-        // Check if any application became 'Certified' - auto navigate to Certified page!
-        const justCertified = allApps.find((app: any) => app.status === 'Certified');
-        if (justCertified) {
-          navigate('/user/certificates/certified');
-          return;
-        }
 
         // Show: Pending (submitted, waiting admin), Installed, TempCertUploaded, RTOApproved
         const filtered = allApps.filter((app: any) =>
