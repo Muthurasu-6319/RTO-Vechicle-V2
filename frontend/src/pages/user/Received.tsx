@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Package, TrendingDown, CheckCircle, AlertCircle } from 'lucide-react';
+import { Package, Calendar, MapPin, Hash } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
 const Received = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stockInfo, setStockInfo] = useState({
-    totalStock: 0,
-    usedStock: 0,
-    balanceStock: 0,
-    totalStock2Year: 0,
-    usedStock2Year: 0,
-    balanceStock2Year: 0
-  });
+  const [totalStock, setTotalStock] = useState(0);
+  const [usedStock, setUsedStock] = useState(0);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -21,7 +15,10 @@ const Received = () => {
     let unsubscribeApps: (() => void) | null = null;
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!user) { setLoading(false); return; }
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       // Fetch orders from backend
       try {
@@ -29,41 +26,19 @@ const Received = () => {
         if (res.ok) {
           const data = await res.json();
           setOrders(data);
+          const total = data.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+          setTotalStock(total);
         }
       } catch (err) {
         console.error('Failed to fetch orders', err);
       }
 
-      // Fetch subscription totals
-      const subsSnap = await getDocs(query(collection(db, 'subscriptions'), where('userId', '==', user.uid)));
-      let totalSubs = 0;
-      subsSnap.forEach(doc => { totalSubs += Number(doc.data().subscriptionCount || 0); });
-
-      // Real-time listener: recalculate balance when applications change
+      // Real-time listener on applications for live balance
       const appsRef = collection(db, 'applications');
       const q = query(appsRef, where('userId', '==', user.uid));
-      unsubscribeApps = onSnapshot(q, async (snapshot) => {
-        const allApps = snapshot.docs.map(doc => doc.data());
-        const used1Year = allApps.filter((app: any) => app.validity === '1 Year').length;
-        const used2Year = allApps.filter((app: any) => app.validity === '2 Years').length;
-
-        // Also re-fetch orders total (in case orders updated)
-        try {
-          const res = await fetch(`${backendUrl}/api/orders/user/${user.uid}`);
-          if (res.ok) {
-            const data = await res.json();
-            setOrders(data);
-            const totalOrders = data.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
-            setStockInfo({
-              totalStock: totalOrders,
-              usedStock: used1Year,
-              balanceStock: totalOrders - used1Year,
-              totalStock2Year: totalSubs,
-              usedStock2Year: used2Year,
-              balanceStock2Year: totalSubs - used2Year
-            });
-          }
-        } catch { }
+      unsubscribeApps = onSnapshot(q, (snapshot) => {
+        const used = snapshot.docs.filter(doc => doc.data().validity === '1 Year').length;
+        setUsedStock(used);
         setLoading(false);
       });
     });
@@ -74,6 +49,7 @@ const Received = () => {
     };
   }, []);
 
+  const balanceStock = totalStock - usedStock;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '2rem' }}>
@@ -94,42 +70,22 @@ const Received = () => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* Stock Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
-            
-            {/* Total Stock */}
-            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #818cf8', backgroundColor: '#e0e7ff' }}>
-              <Package size={24} color="#4f46e5" style={{ marginBottom: '0.5rem' }} />
-              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3730a3', margin: '0 0 0.25rem' }}>Total Stock</p>
-              <p style={{ fontSize: '2rem', fontWeight: 800, color: '#4f46e5', margin: 0 }}>{stockInfo.totalStock}</p>
+          {/* Summary Banner - Total + Used + Balance */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', backgroundColor: '#e0e7ff', border: '1px solid #818cf8' }}>
+              <p style={{ fontWeight: 600, color: '#3730a3', margin: '0 0 0.25rem 0', fontSize: '0.875rem' }}>Total Stock</p>
+              <p style={{ margin: 0, fontSize: '2rem', fontWeight: 700, color: '#4f46e5' }}>{totalStock}</p>
             </div>
-
-            {/* Used Stock */}
-            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #fca5a5', backgroundColor: '#fee2e2' }}>
-              <TrendingDown size={24} color="#dc2626" style={{ marginBottom: '0.5rem' }} />
-              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#991b1b', margin: '0 0 0.25rem' }}>Used</p>
-              <p style={{ fontSize: '2rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>{stockInfo.usedStock}</p>
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', backgroundColor: '#fef3c7', border: '1px solid #fbbf24' }}>
+              <p style={{ fontWeight: 600, color: '#92400e', margin: '0 0 0.25rem 0', fontSize: '0.875rem' }}>Used Stock</p>
+              <p style={{ margin: 0, fontSize: '2rem', fontWeight: 700, color: '#d97706' }}>{usedStock}</p>
             </div>
-
-            {/* Balance Stock */}
-            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', border: `1px solid ${stockInfo.balanceStock <= 0 ? '#fca5a5' : '#86efac'}`, backgroundColor: stockInfo.balanceStock <= 0 ? '#fee2e2' : '#dcfce7' }}>
-              {stockInfo.balanceStock <= 0
-                ? <AlertCircle size={24} color="#dc2626" style={{ marginBottom: '0.5rem' }} />
-                : <CheckCircle size={24} color="#16a34a" style={{ marginBottom: '0.5rem' }} />
-              }
-              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: stockInfo.balanceStock <= 0 ? '#991b1b' : '#14532d', margin: '0 0 0.25rem' }}>Balance</p>
-              <p style={{ fontSize: '2rem', fontWeight: 800, color: stockInfo.balanceStock <= 0 ? '#dc2626' : '#16a34a', margin: 0 }}>{stockInfo.balanceStock}</p>
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', backgroundColor: balanceStock <= 0 ? '#fee2e2' : '#d1fae5', border: `1px solid ${balanceStock <= 0 ? '#fca5a5' : '#6ee7b7'}` }}>
+              <p style={{ fontWeight: 600, color: balanceStock <= 0 ? '#991b1b' : '#065f46', margin: '0 0 0.25rem 0', fontSize: '0.875rem' }}>Balance Stock</p>
+              <p style={{ margin: 0, fontSize: '2rem', fontWeight: 700, color: balanceStock <= 0 ? '#ef4444' : '#10b981' }}>{balanceStock}</p>
             </div>
-
-            {/* Additional Subscription Balance */}
-            {stockInfo.totalStock2Year > 0 && (
-              <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #c4b5fd', backgroundColor: '#f3e8ff' }}>
-                <CheckCircle size={24} color="#7c3aed" style={{ marginBottom: '0.5rem' }} />
-                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b21a8', margin: '0 0 0.25rem' }}>Add. Sub Balance</p>
-                <p style={{ fontSize: '2rem', fontWeight: 800, color: '#7c3aed', margin: 0 }}>{stockInfo.balanceStock2Year}</p>
-              </div>
-            )}
           </div>
+
 
           {/* Orders Table */}
           <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>
