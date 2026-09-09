@@ -37,8 +37,8 @@ const Received = () => {
       const appsRef = collection(db, 'applications');
       const q = query(appsRef, where('userId', '==', user.uid));
       unsubscribeApps = onSnapshot(q, (snapshot) => {
-        const certified = snapshot.docs.filter(doc => doc.data().status === 'Certified').length;
-        setUsedStock(certified); // Balance decreases only when Certified
+        const used = snapshot.docs.length;
+        setUsedStock(used); // Balance decreases for EVERY application immediately
         setLoading(false);
       });
     });
