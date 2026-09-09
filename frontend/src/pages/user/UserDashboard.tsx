@@ -48,19 +48,19 @@ const UserDashboard = () => {
         );
         const certifiedApps = allApps.filter((app: any) => app.status === 'Certified');
 
-        // Count used quotas by validity type
-        const used1Year = allApps.filter((app: any) => app.validity === '1 Year').length;
-        const used2Year = allApps.filter((app: any) => app.validity === '2 Years').length;
+        // Balance Stock decreases ONLY when Certified (not when just applied)
+        const totalCombinedStock = totalQuota1Year + totalQuota2Year;
+        const certifiedCount = certifiedApps.length;
 
         setAppliedCount(appliedApps.length);
         setCertifiedCount(certifiedApps.length);
         setQuota({
-          totalQuota: totalQuota1Year,
-          usedQuota: used1Year,
-          remainingQuota: totalQuota1Year - used1Year,
+          totalQuota: totalCombinedStock,
+          usedQuota: certifiedCount,
+          remainingQuota: totalCombinedStock - certifiedCount,
           totalQuota2Year,
-          usedQuota2Year: used2Year,
-          remainingQuota2Year: totalQuota2Year - used2Year
+          usedQuota2Year: certifiedCount,
+          remainingQuota2Year: totalQuota2Year - certifiedCount
         });
         setLoading(false);
       });
