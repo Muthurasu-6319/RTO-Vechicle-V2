@@ -209,23 +209,65 @@ const Applications = () => {
             </div>
             
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#475569', marginBottom: '0.5rem' }}>Barcode Photo</p>
+              {/* Barcode Photo */}
+              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>📷 Barcode Photo</p>
                 {selectedApp.barcodeUrl ? (
-                  <a href={selectedApp.barcodeUrl} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <FileText size={18} /> View Barcode
+                  <a href={selectedApp.barcodeUrl} target="_blank" rel="noreferrer" title="Click to open full image">
+                    <img
+                      src={selectedApp.barcodeUrl}
+                      alt="Barcode"
+                      style={{
+                        width: '100%',
+                        maxHeight: '140px',
+                        objectFit: 'cover',
+                        borderRadius: '0.5rem',
+                        border: '2px solid #c4b5fd',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.03)')}
+                      onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#7c3aed', marginTop: '0.5rem' }}>Click to view full</p>
                   </a>
-                ) : <span style={{ color: '#94a3b8' }}>No photo</span>}
+                ) : (
+                  <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', borderRadius: '0.5rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+                    No photo uploaded
+                  </div>
+                )}
               </div>
-              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#475569', marginBottom: '0.5rem' }}>RC Book Photo</p>
+
+              {/* RC Book Photo */}
+              <div style={{ flex: 1, backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontWeight: 600, fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>🚗 RC Book Photo</p>
                 {selectedApp.rcUrl ? (
-                  <a href={selectedApp.rcUrl} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <FileText size={18} /> View RC Book
+                  <a href={selectedApp.rcUrl} target="_blank" rel="noreferrer" title="Click to open full image">
+                    <img
+                      src={selectedApp.rcUrl}
+                      alt="RC Book"
+                      style={{
+                        width: '100%',
+                        maxHeight: '140px',
+                        objectFit: 'cover',
+                        borderRadius: '0.5rem',
+                        border: '2px solid #86efac',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.03)')}
+                      onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '0.5rem' }}>Click to view full</p>
                   </a>
-                ) : <span style={{ color: '#94a3b8' }}>No photo</span>}
+                ) : (
+                  <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', borderRadius: '0.5rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+                    No photo uploaded
+                  </div>
+                )}
               </div>
             </div>
+
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
