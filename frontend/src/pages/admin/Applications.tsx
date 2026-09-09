@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, X, Copy, Check, Search, User, Eye, Filter } from 'lucide-react';
+import { FileText, CheckCircle, Clock, X, Copy, Check, Search, User, Eye, Filter, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 
@@ -11,6 +11,7 @@ const Applications = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -82,6 +83,56 @@ const Applications = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this application?')) return;
+    try {
+      const res = await fetch(`${backendUrl}/api/applications/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setApplications(prev => prev.filter(app => app.id !== id));
+        setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+      } else {
+        alert('Failed to delete application.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting application.');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} applications?`)) return;
+
+    try {
+      await Promise.all(
+        selectedIds.map(id =>
+          fetch(`${backendUrl}/api/applications/${id}`, { method: 'DELETE' })
+        )
+      );
+      setApplications(prev => prev.filter(app => !selectedIds.includes(app.id)));
+      setSelectedIds([]);
+    } catch (err) {
+      console.error(err);
+      alert('Error during bulk deletion.');
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.length === filteredApps.length && filteredApps.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredApps.map(app => app.id));
+    }
+  };
+
   const filteredApps = applications.filter(app => {
     const q = searchQuery.toLowerCase();
     return (
@@ -99,15 +150,25 @@ const Applications = () => {
           <p style={{ color: 'var(--text-secondary)' }}>Review and approve submitted certificates.</p>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '300px' }}>
-          <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
-          <input 
-            type="text" 
-            placeholder="Search Vehicle No, IMEI, VLD..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', backgroundColor: 'transparent' }}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          {selectedIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Trash2 size={18} /> Bulk Delete ({selectedIds.length})
+            </button>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '300px', maxWidth: '100%' }}>
+            <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
+            <input 
+              type="text" 
+              placeholder="Search Vehicle No, IMEI, VLD..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ border: 'none', outline: 'none', width: '100%', backgroundColor: 'transparent' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -121,6 +182,14 @@ const Applications = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '1rem 0.5rem', width: '40px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.length === filteredApps.length && filteredApps.length > 0}
+                      onChange={toggleAll}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    />
+                  </th>
                   <th style={{ padding: '1rem 0.5rem' }}>#</th>
                   <th style={{ padding: '1rem 0.5rem' }}>IMEI</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Serial No</th>
@@ -137,6 +206,14 @@ const Applications = () => {
               <tbody>
                 {filteredApps.map((app, index) => (
                   <tr key={app.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '1rem 0.5rem' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(app.id)}
+                        onChange={() => toggleSelection(app.id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 500 }}>{app.imei}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.vldSerial}</td>
@@ -162,13 +239,22 @@ const Applications = () => {
                       </div>
                     </td>
 
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => setSelectedApp(app)}
-                        style={{ padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-                      >
-                        View
-                      </button>
+                    <td style={{ padding: '1rem 0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                        <button 
+                          onClick={() => setSelectedApp(app)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
+                        >
+                          View
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(app.id)}
+                          title="Delete Application"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
