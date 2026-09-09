@@ -5,6 +5,7 @@ const ApprovedApplications = () => {
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -55,6 +56,41 @@ const ApprovedApplications = () => {
     } catch (err) {
       console.error(err);
       alert('Error deleting application.');
+    }
+  };
+
+  const handleDownload = async (appId: string, vehicleNo: string) => {
+    try {
+      setDownloadingId(appId);
+
+      // Step 1: Get signed URL from backend
+      const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=vahan`);
+      if (!res.ok) throw new Error('Could not get download URL');
+      const { downloadUrl, filename } = await res.json();
+
+      // Step 2: Fetch and trigger download
+      try {
+        const fileRes = await fetch(downloadUrl);
+        if (!fileRes.ok) throw new Error('Direct fetch failed');
+
+        const blob = await fileRes.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename || `${(vehicleNo || '').toUpperCase()}_Vahan_Certificate.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        // Fallback: open in new tab
+        window.open(downloadUrl, '_blank');
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download certificate. Please try again.');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -113,12 +149,13 @@ const ApprovedApplications = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                       {app.vahanCertUrl && (
-                        <a 
-                          href={app.vahanCertUrl} target="_blank" rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, textDecoration: 'none' }}
+                        <button 
+                          onClick={() => handleDownload(app.id, app.vehicleNo)}
+                          disabled={downloadingId === app.id}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer' }}
                         >
-                          <Download size={16} /> View
-                        </a>
+                          {downloadingId === app.id ? '...' : <><Download size={16} /> Download</>}
+                        </button>
                       )}
                       
                       <button 
