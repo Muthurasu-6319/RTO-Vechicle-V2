@@ -70,7 +70,7 @@
 
   .user-main-content {
     padding: 1rem;
-    padding-top: 4rem; /* Space for the topbar on mobile */
+    padding-top: 5rem; /* Space for the topbar on mobile */
   }
 
   .user-topbar-mobile {
@@ -78,7 +78,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: 75px;
     background-color: white;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
