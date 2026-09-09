@@ -135,28 +135,30 @@ const Certified = () => {
                     <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{app.registrationDate}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : '-'}</td>
                     
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => setSelectedApp(app)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', marginRight: '0.5rem' }}
-                      >
-                        <Eye size={16} /> View
-                      </button>
-                      
-                      {app.vahanCertUrl ? (
+                    <td style={{ padding: '1rem 0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                         <button 
-                          onClick={() => handleDownload(app.id, app.vehicleNo)}
-                          disabled={downloadingId === app.id}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer' }}
+                          onClick={() => setSelectedApp(app)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >
-                          {downloadingId === app.id
-                            ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Downloading...</>
-                            : <><Download size={16} /> Download PDF</>
-                          }
+                          <Eye size={16} /> View
                         </button>
-                      ) : (
-                        <span style={{ color: '#94a3b8' }}>Not available</span>
-                      )}
+                        
+                        {app.vahanCertUrl ? (
+                          <button 
+                            onClick={() => handleDownload(app.id, app.vehicleNo)}
+                            disabled={downloadingId === app.id}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            {downloadingId === app.id
+                              ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Downloading...</>
+                              : <><Download size={16} /> Download PDF</>
+                            }
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>Not available</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

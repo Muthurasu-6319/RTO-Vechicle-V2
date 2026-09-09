@@ -1,6 +1,6 @@
 .user-layout {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: #f8fafc;
   overflow: hidden;
 }
@@ -13,13 +13,13 @@
   flex-direction: column;
   transition: transform 0.3s ease;
   z-index: 40;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .user-main-content {
   flex: 1;
   padding: 2rem;
-  height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   position: relative;
   width: 100%;
@@ -56,8 +56,11 @@
     position: fixed;
     top: 0;
     left: 0;
+    bottom: 0;
+    height: 100%;
     transform: translateX(-100%);
     box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+    padding-bottom: 2rem; /* Bring logout button up */
   }
 
   .user-sidebar.open {
