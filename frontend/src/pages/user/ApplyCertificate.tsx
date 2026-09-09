@@ -162,8 +162,10 @@ const ApplyCertificate = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // Vehicle No Validation: Max 10 characters
-    if (name === 'vehicleNo' && value.length > 10) {
+    // Vehicle No Validation: Max 10 characters, always UPPERCASE
+    if (name === 'vehicleNo') {
+      if (value.length > 10) return;
+      setFormData(prev => ({ ...prev, vehicleNo: value.toUpperCase() }));
       return;
     }
     

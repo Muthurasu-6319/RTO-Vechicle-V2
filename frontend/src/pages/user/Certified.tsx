@@ -60,7 +60,7 @@ const Certified = () => {
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = blobUrl;
-        a.download = filename || `Vahan_Certificate_${vehicleNo}.pdf`;
+        a.download = filename || `${vehicleNo.toUpperCase()}_Vahan_Certificate.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();

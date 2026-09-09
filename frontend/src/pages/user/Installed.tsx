@@ -84,7 +84,7 @@ const Installed = () => {
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = blobUrl;
-        a.download = filename || `Temp_Certificate_${vehicleNo}.pdf`;
+        a.download = filename || `${vehicleNo.toUpperCase()}_Temp_Certificate.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();

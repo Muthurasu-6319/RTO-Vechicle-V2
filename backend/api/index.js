@@ -605,18 +605,15 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 
     const appData = docSnap.data();
 
-    let fileUrl = appData.vahanCertUrl;
-    let fileNamePrefix = 'Vahan_Certificate';
-    if (type === 'temp') {
-      fileUrl = appData.tempCertUrl;
-      fileNamePrefix = 'Temp_Certificate';
-    }
+    const fileUrl = type === 'temp' ? appData.tempCertUrl : appData.vahanCertUrl;
+    const vehicleNoUpper = (appData.vehicleNo || 'Document').toUpperCase();
+    const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
+    const filename = `${vehicleNoUpper}_${certType}.pdf`;
 
     if (!fileUrl) {
       return res.status(404).json({ error: 'Certificate not available' });
     }
 
-    const filename = `${fileNamePrefix}_${appData.vehicleNo || 'Document'}.pdf`;
 
     // Check if it's a B2 URL
     if (fileUrl.includes(process.env.B2_ENDPOINT)) {
