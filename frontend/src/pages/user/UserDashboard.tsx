@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, CreditCard, FileText, CheckCircle } from 'lucide-react';
 import { auth, db } from '../../firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
 const UserDashboard = () => {
   const [quota, setQuota] = useState({
@@ -16,37 +16,52 @@ const UserDashboard = () => {
   const [appliedCount, setAppliedCount] = useState(0);
   const [certifiedCount, setCertifiedCount] = useState(0);
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-
   useEffect(() => {
     let unsubscribeSnapshot: (() => void) | null = null;
+
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
         return;
       }
-      try {
-        const res = await fetch(`${backendUrl}/api/users/${user.uid}/quota`);
-        if (res.ok) {
-          const data = await res.json();
-          setQuota(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch quota', err);
-      }
-      
+
+      // Fetch total stock from orders (1-year) + subscriptions (2-year)
+      const [ordersSnap, subsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'orders'), where('userId', '==', user.uid))),
+        getDocs(query(collection(db, 'subscriptions'), where('userId', '==', user.uid)))
+      ]);
+
+      let totalQuota1Year = 0;
+      ordersSnap.forEach(doc => { totalQuota1Year += Number(doc.data().quantity || 0); });
+
+      let totalQuota2Year = 0;
+      subsSnap.forEach(doc => { totalQuota2Year += Number(doc.data().subscriptionCount || 0); });
+
+      // Real-time listener: balance recalculates instantly when application is added/removed
       const appsRef = collection(db, 'applications');
       const q = query(appsRef, where('userId', '==', user.uid));
       unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const allApps = snapshot.docs.map(doc => doc.data());
-        
+
         const appliedApps = allApps.filter((app: any) =>
           ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
         );
         const certifiedApps = allApps.filter((app: any) => app.status === 'Certified');
-        
+
+        // Count used quotas by validity type
+        const used1Year = allApps.filter((app: any) => app.validity === '1 Year').length;
+        const used2Year = allApps.filter((app: any) => app.validity === '2 Years').length;
+
         setAppliedCount(appliedApps.length);
         setCertifiedCount(certifiedApps.length);
+        setQuota({
+          totalQuota: totalQuota1Year,
+          usedQuota: used1Year,
+          remainingQuota: totalQuota1Year - used1Year,
+          totalQuota2Year,
+          usedQuota2Year: used2Year,
+          remainingQuota2Year: totalQuota2Year - used2Year
+        });
         setLoading(false);
       });
     });
