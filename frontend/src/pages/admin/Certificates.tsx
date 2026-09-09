@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle, FileText, Check, Search, Trash2 } from 'lucide-react';
+import { Upload, CheckCircle, FileText, Check, Search, Trash2, User } from 'lucide-react';
 import UploadButton from '../../components/UploadButton';
 
 const Certificates = () => {
   const [applications, setApplications] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -29,6 +30,11 @@ const Certificates = () => {
         );
         setApplications(filtered);
       }
+      const usersRes = await fetch(`${backendUrl}/api/users`);
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -39,6 +45,25 @@ const Certificates = () => {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  // Get user name from users list by userId
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.id === userId || u.uid === userId);
+    return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
+  };
+
+  // Format createdAt ISO string to readable date + time
+  const formatDateTime = (isoStr: string) => {
+    if (!isoStr) return '—';
+    try {
+      const date = new Date(isoStr);
+      const d = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const t = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${d}, ${t}`;
+    } catch {
+      return isoStr;
+    }
+  };
 
   const handleUploadSuccess = async (url: string) => {
     if (!uploadingAppId) return;
@@ -128,6 +153,7 @@ const Certificates = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>VLD S.No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Status</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Username</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -147,6 +173,19 @@ const Certificates = () => {
                       }}>
                         {app.status}
                       </span>
+                    </td>
+                    <td style={{ padding: '1rem 0.5rem', minWidth: '160px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+                        <User size={14} color="#8b5cf6" style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#1e293b' }}>
+                            {getUserName(app.userId)}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                            {formatDateTime(app.createdAt)}
+                          </div>
+                        </div>
+                      </div>
                     </td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                       {app.status === 'Installed' && (

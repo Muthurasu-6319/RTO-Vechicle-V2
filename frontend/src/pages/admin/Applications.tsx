@@ -134,7 +134,7 @@ const Applications = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Mobile</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg Date</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>Applied By</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Username</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
