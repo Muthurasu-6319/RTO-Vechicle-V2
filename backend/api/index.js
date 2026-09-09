@@ -6,8 +6,16 @@ const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const cloudinary = require('cloudinary').v2;
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
+
+// Cloudinary config (for images - barcode & RC photos)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Multer - store files in memory for B2 upload
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB limit
@@ -77,34 +85,51 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// B2 Server-Side Upload Route (avoids browser CORS issues)
+// Hybrid Upload Route: Images → Cloudinary, PDFs → Backblaze B2
 app.post('/api/upload/file', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
     }
 
+    const isImage = req.file.mimetype.startsWith('image/');
     const folder = req.body.folder || 'documents';
-    const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
-    const uniqueFileName = `${Date.now()}-${originalName}`;
-    const objectKey = `${folder}/${uniqueFileName}`;
 
-    const command = new PutObjectCommand({
-      Bucket: b2BucketName,
-      Key: objectKey,
-      Body: req.file.buffer,
-      ContentType: req.file.mimetype,
-    });
+    if (isImage) {
+      // ── IMAGES → Cloudinary (public URL for easy preview) ──
+      const base64 = req.file.buffer.toString('base64');
+      const dataUri = `data:${req.file.mimetype};base64,${base64}`;
 
-    await s3Client.send(command);
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
+        folder: folder,
+        resource_type: 'image',
+        use_filename: false,
+      });
 
-    // Construct the file URL
-    const fileUrl = `${process.env.B2_ENDPOINT}/${b2BucketName}/${objectKey}`;
-    console.log('File uploaded to B2:', objectKey);
+      console.log('Image uploaded to Cloudinary:', uploadResult.public_id);
+      res.json({ fileUrl: uploadResult.secure_url, objectKey: uploadResult.public_id, filename: uploadResult.original_filename });
 
-    res.json({ fileUrl, objectKey, filename: uniqueFileName });
+    } else {
+      // ── PDFs → Backblaze B2 (private, signed URL for download) ──
+      const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
+      const uniqueFileName = `${Date.now()}-${originalName}`;
+      const objectKey = `${folder}/${uniqueFileName}`;
+
+      const command = new PutObjectCommand({
+        Bucket: b2BucketName,
+        Key: objectKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      });
+
+      await s3Client.send(command);
+      const fileUrl = `${process.env.B2_ENDPOINT}/${b2BucketName}/${objectKey}`;
+      console.log('PDF uploaded to B2:', objectKey);
+      res.json({ fileUrl, objectKey, filename: uniqueFileName });
+    }
+
   } catch (error) {
-    console.error('Error uploading file to B2:', error);
+    console.error('Error uploading file:', error);
     res.status(500).json({ error: 'Failed to upload file', details: error.message });
   }
 });
