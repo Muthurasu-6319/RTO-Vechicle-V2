@@ -38,42 +38,24 @@ const UploadButton: React.FC<UploadButtonProps> = ({ onUploadSuccess, folderPath
 
       setProgress(30);
 
-      // 1. Get Signature from our Backend
-      // Replace with your production backend URL later
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      // Upload to backend which uploads to B2 (avoids CORS)
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
       
-      const sigResponse = await fetch(`${backendUrl}/api/cloudinary/sign?folder=${folderPath}`);
-      if (!sigResponse.ok) {
-        throw new Error('Failed to get upload signature from backend');
-      }
-      const { timestamp, signature, folder, use_filename, unique_filename } = await sigResponse.json();
+      const formData = new FormData();
+      formData.append('file', fileToUpload, file.name);
+      formData.append('folder', folderPath);
 
       setProgress(50);
 
-      // 2. Upload to Cloudinary securely
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
-      formData.append('api_key', import.meta.env.VITE_CLOUDINARY_API_KEY);
-      formData.append('timestamp', timestamp);
-      formData.append('signature', signature);
-      formData.append('folder', folder);
-      if (use_filename) formData.append('use_filename', use_filename);
-      if (unique_filename) formData.append('unique_filename', unique_filename);
-
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      // Use 'raw' for PDFs to prevent Cloudinary from processing them as images, which causes loading errors
-      const resourceType = fileToUpload.type === 'application/pdf' ? 'raw' : 'auto';
-      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
-
-      const uploadResponse = await fetch(cloudinaryUrl, {
+      const uploadResponse = await fetch(`${backendUrl}/api/upload/file`, {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json();
-        console.error('Cloudinary Error:', errorData);
-        throw new Error(errorData.error?.message || 'Upload failed');
+        console.error('Upload Error:', errorData);
+        throw new Error(errorData.error || 'Upload failed');
       }
 
       const data = await uploadResponse.json();
@@ -83,7 +65,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({ onUploadSuccess, folderPath
       setIsUploading(false);
       
       if (onUploadSuccess) {
-        onUploadSuccess(data.secure_url);
+        onUploadSuccess(data.fileUrl);
       }
       
     } catch (err) {

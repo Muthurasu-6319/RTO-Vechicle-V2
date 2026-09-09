@@ -1,18 +1,27 @@
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
-const cloudinary = require('cloudinary').v2;
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+// Multer - store files in memory for B2 upload
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB limit
+
+// Configure S3 for Backblaze B2
+const s3Client = new S3Client({
+  endpoint: process.env.B2_ENDPOINT,
+  region: process.env.B2_REGION,
+  credentials: {
+    accessKeyId: process.env.B2_KEY_ID,
+    secretAccessKey: process.env.B2_APPLICATION_KEY,
+  }
 });
+const b2BucketName = process.env.B2_BUCKET_NAME;
 
 const app = express();
 
@@ -68,20 +77,36 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Cloudinary Signature Route
-app.get('/api/cloudinary/sign', (req, res) => {
-  const timestamp = Math.round((new Date).getTime() / 1000);
-  // Optional folder parameter
-  const folder = req.query.folder || 'documents';
-  
-  const signature = cloudinary.utils.api_sign_request({
-    timestamp: timestamp,
-    folder: folder,
-    use_filename: 'true',
-    unique_filename: 'false'
-  }, process.env.CLOUDINARY_API_SECRET);
+// B2 Server-Side Upload Route (avoids browser CORS issues)
+app.post('/api/upload/file', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
 
-  res.json({ timestamp, signature, folder, use_filename: 'true', unique_filename: 'false' });
+    const folder = req.body.folder || 'documents';
+    const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '');
+    const uniqueFileName = `${Date.now()}-${originalName}`;
+    const objectKey = `${folder}/${uniqueFileName}`;
+
+    const command = new PutObjectCommand({
+      Bucket: b2BucketName,
+      Key: objectKey,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    });
+
+    await s3Client.send(command);
+
+    // Construct the file URL
+    const fileUrl = `${process.env.B2_ENDPOINT}/${b2BucketName}/${objectKey}`;
+    console.log('File uploaded to B2:', objectKey);
+
+    res.json({ fileUrl, objectKey, filename: uniqueFileName });
+  } catch (error) {
+    console.error('Error uploading file to B2:', error);
+    res.status(500).json({ error: 'Failed to upload file', details: error.message });
+  }
 });
 
 // Gemini OCR Route
@@ -565,7 +590,7 @@ app.put('/api/applications/:id/vahan-cert', async (req, res) => {
   }
 });
 
-// Securely Download Certificate without exposing Cloudinary URL
+// Securely Download Certificate
 app.get('/api/applications/:id/download-certificate', async (req, res) => {
   try {
     const { id } = req.params;
@@ -580,38 +605,37 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 
     const appData = docSnap.data();
 
-    let cloudinaryUrl = appData.vahanCertUrl;
+    let fileUrl = appData.vahanCertUrl;
     let fileNamePrefix = 'Vahan_Certificate';
     if (type === 'temp') {
-      cloudinaryUrl = appData.tempCertUrl;
+      fileUrl = appData.tempCertUrl;
       fileNamePrefix = 'Temp_Certificate';
     }
 
-    if (!cloudinaryUrl) {
+    if (!fileUrl) {
       return res.status(404).json({ error: 'Certificate not available' });
     }
 
     const filename = `${fileNamePrefix}_${appData.vehicleNo || 'Document'}.pdf`;
 
-    // Extract public_id (keep extension for raw resources)
-    const match = cloudinaryUrl.match(/\/upload\/(?:v\d+\/)?(.+)$/);
-    const publicId = match ? match[1] : null;
-
-    if (!publicId) {
-      // Fallback: return original URL
-      return res.json({ downloadUrl: cloudinaryUrl, filename });
+    // Check if it's a B2 URL
+    if (fileUrl.includes(process.env.B2_ENDPOINT)) {
+      // Extract the object key from the B2 URL
+      // URL format: process.env.B2_ENDPOINT/bucketName/objectKey
+      const prefix = `${process.env.B2_ENDPOINT}/${b2BucketName}/`;
+      let objectKey = fileUrl.replace(prefix, '');
+      
+      const command = new GetObjectCommand({
+        Bucket: b2BucketName,
+        Key: objectKey,
+        ResponseContentDisposition: `attachment; filename="${filename}"`
+      });
+      const downloadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      return res.json({ downloadUrl, filename });
     }
 
-    // Generate signed URL for browser-side download
-    const signedUrl = cloudinary.url(publicId, {
-      resource_type: 'raw',
-      sign_url: true,
-      secure: true,
-      type: 'upload'
-    });
-
-    console.log('Returning signed URL for browser download:', publicId);
-    res.json({ downloadUrl: signedUrl, filename });
+    // Fallback: return original URL (e.g., old Cloudinary URLs)
+    res.json({ downloadUrl: fileUrl, filename });
 
   } catch (error) {
     console.error('Error generating download URL:', error.message);
