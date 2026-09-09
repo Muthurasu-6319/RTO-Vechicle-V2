@@ -166,37 +166,39 @@ const ApprovedApplications = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <span style={{ 
                         padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.875rem', fontWeight: 500,
-                        backgroundColor: '#d1fae5', color: '#047857'
+                        backgroundColor: '#d1fae5', color: '#047857', whiteSpace: 'nowrap'
                       }}>
                         <CheckCircle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }}/>
                         Certified
                       </span>
                     </td>
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => setSelectedApp(app)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', marginRight: '0.5rem' }}
-                      >
-                        <Eye size={16} /> View
-                      </button>
-                      
-                      {app.vahanCertUrl && (
+                    <td style={{ padding: '1rem 0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                         <button 
-                          onClick={() => handleDownload(app.id, app.vehicleNo)}
-                          disabled={downloadingId === app.id}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer' }}
+                          onClick={() => setSelectedApp(app)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >
-                          {downloadingId === app.id ? '...' : <><Download size={16} /> Download</>}
+                          <Eye size={16} /> View
                         </button>
-                      )}
-                      
-                      <button 
-                        onClick={() => handleDelete(app.id)}
-                        title="Delete Application"
-                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', marginLeft: '0.5rem' }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                        
+                        {app.vahanCertUrl && (
+                          <button 
+                            onClick={() => handleDownload(app.id, app.vehicleNo)}
+                            disabled={downloadingId === app.id}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            {downloadingId === app.id ? '...' : <><Download size={16} /> Download</>}
+                          </button>
+                        )}
+                        
+                        <button 
+                          onClick={() => handleDelete(app.id)}
+                          title="Delete Application"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

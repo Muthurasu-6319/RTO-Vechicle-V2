@@ -169,7 +169,8 @@ const Certificates = () => {
                       <span style={{ 
                         padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.875rem', fontWeight: 500,
                         backgroundColor: app.status === 'Installed' ? '#e0e7ff' : app.status === 'TempCertUploaded' ? '#fef3c7' : '#d1fae5',
-                        color: app.status === 'Installed' ? '#4f46e5' : app.status === 'TempCertUploaded' ? '#b45309' : '#047857'
+                        color: app.status === 'Installed' ? '#4f46e5' : app.status === 'TempCertUploaded' ? '#b45309' : '#047857',
+                        whiteSpace: 'nowrap'
                       }}>
                         {app.status}
                       </span>
@@ -187,36 +188,38 @@ const Certificates = () => {
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
-                      {app.status === 'Installed' && (
-                        <button 
-                          onClick={() => { setUploadType('temp'); setUploadingAppId(app.id); }}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-                        >
-                          <Upload size={16} /> Upload Temp Cert
-                        </button>
-                      )}
-                      
-                      {app.status === 'TempCertUploaded' && (
-                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Waiting for User Approval</span>
-                      )}
+                    <td style={{ padding: '1rem 0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                        {app.status === 'Installed' && (
+                          <button 
+                            onClick={() => { setUploadType('temp'); setUploadingAppId(app.id); }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            <Upload size={16} /> Upload Temp Cert
+                          </button>
+                        )}
+                        
+                        {app.status === 'TempCertUploaded' && (
+                          <span style={{ color: '#64748b', fontSize: '0.875rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>Waiting for User Approval</span>
+                        )}
 
-                      {app.status === 'RTOApproved' && (
-                        <button 
-                          onClick={() => { setUploadType('vahan'); setUploadingAppId(app.id); }}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-                        >
-                          <Upload size={16} /> Upload Vahan Cert
-                        </button>
-                      )}
+                        {app.status === 'RTOApproved' && (
+                          <button 
+                            onClick={() => { setUploadType('vahan'); setUploadingAppId(app.id); }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            <Upload size={16} /> Upload Vahan Cert
+                          </button>
+                        )}
 
-                      <button 
-                        onClick={() => handleDelete(app.id)}
-                        title="Delete Application"
-                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', marginLeft: '0.5rem' }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                        <button 
+                          onClick={() => handleDelete(app.id)}
+                          title="Delete Application"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
