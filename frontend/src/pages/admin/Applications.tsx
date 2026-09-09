@@ -64,7 +64,6 @@ const Applications = () => {
     }
   };
 
-  };
 
   const handleApprove = async (id: string) => {
     if (!window.confirm('Are you sure you want to approve this application and move it to Installed?')) return;
