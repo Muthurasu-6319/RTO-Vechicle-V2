@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Download, FileText, Loader } from 'lucide-react';
+import { Download, FileText, Loader, Eye } from 'lucide-react';
+import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 import { auth, db } from '../../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
@@ -7,6 +8,7 @@ const Certified = () => {
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [selectedApp, setSelectedApp] = useState<any | null>(null);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -41,6 +43,18 @@ const Certified = () => {
       if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
   }, []);
+
+  const formatDateTime = (isoStr: string) => {
+    if (!isoStr) return '—';
+    try {
+      const date = new Date(isoStr);
+      const d = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const t = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${d}, ${t}`;
+    } catch {
+      return isoStr;
+    }
+  };
 
   const handleDownload = async (appId: string, vehicleNo: string) => {
     try {
@@ -122,6 +136,13 @@ const Certified = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : '-'}</td>
                     
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
+                      <button 
+                        onClick={() => setSelectedApp(app)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', marginRight: '0.5rem' }}
+                      >
+                        <Eye size={16} /> View
+                      </button>
+                      
                       {app.vahanCertUrl ? (
                         <button 
                           onClick={() => handleDownload(app.id, app.vehicleNo)}
@@ -144,6 +165,14 @@ const Certified = () => {
           </div>
         )}
       </div>
+
+      {selectedApp && (
+        <ApplicationDetailsModal
+          app={selectedApp}
+          onClose={() => setSelectedApp(null)}
+          formatDateTime={formatDateTime}
+        />
+      )}
     </div>
   );
 };

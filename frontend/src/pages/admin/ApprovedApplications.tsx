@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Download, Search, Trash2 } from 'lucide-react';
+import { CheckCircle, Download, Search, Trash2, Eye } from 'lucide-react';
+import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 
 const ApprovedApplications = () => {
   const [applications, setApplications] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [selectedApp, setSelectedApp] = useState<any | null>(null);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -23,6 +26,11 @@ const ApprovedApplications = () => {
           const filtered = data.filter((app: any) => app.status === 'Certified');
           setApplications(filtered);
         }
+        const usersRes = await fetch(`${backendUrl}/api/users`);
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          setUsers(usersData);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -31,6 +39,23 @@ const ApprovedApplications = () => {
     };
     fetchApplications();
   }, []);
+
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.id === userId || u.uid === userId);
+    return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
+  };
+
+  const formatDateTime = (isoStr: string) => {
+    if (!isoStr) return '—';
+    try {
+      const date = new Date(isoStr);
+      const d = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const t = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${d}, ${t}`;
+    } catch {
+      return isoStr;
+    }
+  };
 
   const filteredApps = applications.filter(app => {
     const q = searchQuery.toLowerCase();
@@ -148,6 +173,13 @@ const ApprovedApplications = () => {
                       </span>
                     </td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
+                      <button 
+                        onClick={() => setSelectedApp(app)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', marginRight: '0.5rem' }}
+                      >
+                        <Eye size={16} /> View
+                      </button>
+                      
                       {app.vahanCertUrl && (
                         <button 
                           onClick={() => handleDownload(app.id, app.vehicleNo)}
@@ -173,6 +205,15 @@ const ApprovedApplications = () => {
           </div>
         )}
       </div>
+
+      {selectedApp && (
+        <ApplicationDetailsModal
+          app={selectedApp}
+          onClose={() => setSelectedApp(null)}
+          getUserName={getUserName}
+          formatDateTime={formatDateTime}
+        />
+      )}
     </div>
   );
 };
