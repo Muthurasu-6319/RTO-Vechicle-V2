@@ -69,8 +69,29 @@ const Orders = () => {
     setEditingOrder(null);
   };
 
+  const generateNextOrderId = () => {
+    const existingIds = orders
+      .map(o => o.orderId)
+      .filter(id => id && id.startsWith('V'))
+      .map(id => parseInt(id.substring(1), 10))
+      .filter(num => !isNaN(num))
+      .sort((a, b) => a - b);
+    
+    let nextIdNum = 1;
+    for (let i = 0; i < existingIds.length; i++) {
+      if (existingIds[i] === nextIdNum) {
+        nextIdNum++;
+      } else if (existingIds[i] > nextIdNum) {
+        break; // Found a gap
+      }
+    }
+    return `V${String(nextIdNum).padStart(3, '0')}`;
+  };
+
   const openCreateModal = () => {
     resetForm();
+    const today = new Date().toISOString().split('T')[0];
+    setFormData(prev => ({ ...prev, orderId: generateNextOrderId(), orderedDate: today }));
     setIsModalOpen(true);
   };
 
@@ -104,7 +125,8 @@ const Orders = () => {
       return;
     }
 
-    const currentStock = stockStats[formData.item]?.currentStock || 0;
+    const mfgKey = formData.item ? formData.item.replace(/\s+/g, '').toUpperCase() : '';
+    const currentStock = stockStats[mfgKey]?.currentStock || 0;
     const requestedQty = Number(formData.quantity);
     
     // Calculate effective requested quantity based on whether we are editing or creating
@@ -338,11 +360,15 @@ const Orders = () => {
                       <option key={idx} value={m}>{m}</option>
                     ))}
                   </select>
-                  {formData.item && (
-                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: (stockStats[formData.item]?.currentStock || 0) <= 0 ? '#ef4444' : '#10b981' }}>
-                      Available Stock: {stockStats[formData.item]?.currentStock || 0}
-                    </p>
-                  )}
+                  {formData.item && (() => {
+                    const mKey = formData.item.replace(/\s+/g, '').toUpperCase();
+                    const availStock = stockStats[mKey]?.currentStock || 0;
+                    return (
+                      <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: availStock <= 0 ? '#ef4444' : '#10b981' }}>
+                        Available Stock: {availStock}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Batch</label>

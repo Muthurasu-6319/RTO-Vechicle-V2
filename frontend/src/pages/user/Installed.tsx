@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, FileText, CheckCircle, Loader, Clock, AlertCircle } from 'lucide-react';
 import { auth, db } from '../../firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const Installed = () => {
   const [applications, setApplications] = useState<any[]>([]);
@@ -13,41 +13,36 @@ const Installed = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
-    let unsubscribeSnapshot: (() => void) | null = null;
-
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
         return;
       }
 
-      // Firebase real-time listener - no orderBy to avoid composite index requirement!
-      const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('userId', '==', user.uid));
-
-      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+      try {
+        const appsRef = collection(db, 'applications');
+        const q = query(appsRef, where('userId', '==', user.uid));
+        
+        const snapshot = await getDocs(q);
         const allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         // Sort by createdAt descending in memory (avoids Firestore composite index)
         allApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
 
         // Show: Pending (submitted, waiting admin), Installed, TempCertUploaded, RTOApproved
         const filtered = allApps.filter((app: any) =>
           ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
         );
         setApplications(filtered);
+      } catch (error) {
+        console.error('Firestore fetch error:', error);
+      } finally {
         setLoading(false);
-      }, (error) => {
-        // Error handler - stop loading so user isn't stuck
-        console.error('Firestore listener error:', error);
-        setLoading(false);
-      });
+      }
     });
 
     return () => {
       unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
   }, [navigate]);
 
@@ -59,8 +54,9 @@ const Installed = () => {
       });
       if (!res.ok) {
         alert('Failed to update status');
+      } else {
+        setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'RTOApproved' } : app));
       }
-      // No need to manually refresh - onSnapshot auto updates!
     } catch (err) {
       console.error(err);
     }

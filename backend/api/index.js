@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const cache = require('memory-cache');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -366,6 +367,11 @@ app.delete('/api/users/:uid', async (req, res) => {
 // Admin Route: Get Stats
 app.get('/api/stats/admin', async (req, res) => {
   try {
+    const cachedStats = cache.get('admin_stats');
+    if (cachedStats) {
+      return res.json(cachedStats);
+    }
+
     const usersSnapshot = await db.collection('users').count().get();
     const totalUsers = usersSnapshot.data().count;
 
@@ -385,7 +391,7 @@ app.get('/api/stats/admin', async (req, res) => {
     const stockDoc = await db.collection('settings').doc('dashboard').get();
     const deviceStock = stockDoc.exists ? (stockDoc.data().deviceStock || 0) : 0;
 
-    res.json({
+    const statsData = {
       totalUsers: totalUsers,
       applications: totalApps,
       pendingReview: pendingApps,
@@ -393,7 +399,9 @@ app.get('/api/stats/admin', async (req, res) => {
       totalOrders: totalOrders,
       deviceStock: deviceStock,
       subscriptions: 0
-    });
+    };
+    cache.put('admin_stats', statsData, 2 * 60 * 1000); // 2 minutes cache
+    res.json(statsData);
   } catch (error) {
     console.error('Error fetching stats:', error);
     res.status(500).json({ error: error.message });
@@ -470,19 +478,28 @@ app.post('/api/applications', async (req, res) => {
 app.get('/api/applications', async (req, res) => {
   try {
     const { manufacturer, userId } = req.query;
-    let query = db.collection('applications').orderBy('createdAt', 'desc');
+    let applicationsRef = db.collection('applications');
+    let query = applicationsRef;
+
+    if (manufacturer) {
+      query = query.where('manufacturer', '==', manufacturer);
+    }
+    if (userId) {
+      query = query.where('userId', '==', userId);
+    }
+    
+    // Add a limit to prevent fetching massive amounts of data
+    query = query.limit(100);
 
     const snapshot = await query.get();
-    const applications = [];
+    let applications = [];
     
     snapshot.forEach(doc => {
-      const data = doc.data();
-      // Filter in memory
-      if (manufacturer && data.manufacturer !== manufacturer) return;
-      if (userId && data.userId !== userId) return;
-      
-      applications.push({ id: doc.id, ...data });
+      applications.push({ id: doc.id, ...doc.data() });
     });
+    
+    // Sort in memory to avoid composite index requirement
+    applications.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     
     res.json(applications);
   } catch (error) {
@@ -670,6 +687,11 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 // Get Settings (Manufacturers & RTO Offices)
 app.get('/api/settings', async (req, res) => {
   try {
+    const cachedSettings = cache.get('settings');
+    if (cachedSettings) {
+      return res.json(cachedSettings);
+    }
+
     const docRef = db.collection('settings').doc('general');
     const doc = await docRef.get();
     
@@ -678,7 +700,9 @@ app.get('/api/settings', async (req, res) => {
       return res.json({ manufacturers: [], rtoOffices: [] });
     }
     
-    res.json(doc.data());
+    const data = doc.data();
+    cache.put('settings', data, 10 * 60 * 1000); // 10 minutes cache
+    res.json(data);
   } catch (error) {
     console.error('Error fetching settings:', error);
     res.status(500).json({ error: error.message });
@@ -1092,7 +1116,7 @@ app.get('/api/stats/manufacturer-stock', async (req, res) => {
     // Add up all purchases (incoming stock)
     purchaseSnap.forEach(doc => {
       const data = doc.data();
-      const mfg = data.manufacturer;
+      const mfg = data.manufacturer ? data.manufacturer.replace(/\s+/g, '').toUpperCase() : null;
       const qty = Number(data.quantity) || 0;
       if (mfg && qty > 0) {
         if (!stockMap[mfg]) stockMap[mfg] = { totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
@@ -1103,7 +1127,7 @@ app.get('/api/stats/manufacturer-stock', async (req, res) => {
     // Subtract all allocations (orders given to users)
     orderSnap.forEach(doc => {
       const data = doc.data();
-      const mfg = data.item; // Remember in Orders we changed 'item' to represent Manufacturer
+      const mfg = data.item ? data.item.replace(/\s+/g, '').toUpperCase() : null; // Remember in Orders we changed 'item' to represent Manufacturer
       const qty = Number(data.quantity) || 0;
       if (mfg && qty > 0) {
         if (!stockMap[mfg]) stockMap[mfg] = { totalPurchased: 0, totalAllocated: 0, currentStock: 0 };

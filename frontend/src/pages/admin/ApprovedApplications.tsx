@@ -7,6 +7,8 @@ const ApprovedApplications = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -60,11 +62,34 @@ const ApprovedApplications = () => {
 
   const filteredApps = applications.filter(app => {
     const q = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       (app.vehicleNo && app.vehicleNo.toLowerCase().includes(q)) ||
       (app.imei && app.imei.toLowerCase().includes(q)) ||
-      (app.vldSerial && app.vldSerial.toLowerCase().includes(q))
+      (app.vldSerial && app.vldSerial.toLowerCase().includes(q)) ||
+      (app.customerName && app.customerName.toLowerCase().includes(q)) ||
+      (app.rtoOffice && app.rtoOffice.toLowerCase().includes(q))
     );
+
+    let matchesDate = true;
+    if (fromDate || toDate) {
+      const appDate = app.certifiedAt ? new Date(app.certifiedAt) : null;
+      if (appDate) {
+        if (fromDate) {
+          const fd = new Date(fromDate);
+          fd.setHours(0, 0, 0, 0);
+          if (appDate < fd) matchesDate = false;
+        }
+        if (toDate) {
+          const td = new Date(toDate);
+          td.setHours(23, 59, 59, 999);
+          if (appDate > td) matchesDate = false;
+        }
+      } else {
+        matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesDate;
   });
 
   const handleDelete = async (id: string) => {
@@ -169,11 +194,28 @@ const ApprovedApplications = () => {
               <Trash2 size={18} /> Bulk Delete ({selectedIds.length})
             </button>
           )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input 
+              type="date" 
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', outline: 'none' }}
+              title="From Date"
+            />
+            <span style={{ color: 'var(--text-secondary)' }}>to</span>
+            <input 
+              type="date" 
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', outline: 'none' }}
+              title="To Date"
+            />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '300px', maxWidth: '100%' }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
               type="text" 
-              placeholder="Search Vehicle No, IMEI, VLD..." 
+              placeholder="Search Name, Vehicle No, RTO..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ border: 'none', outline: 'none', width: '100%', backgroundColor: 'transparent' }}
@@ -200,7 +242,9 @@ const ApprovedApplications = () => {
                       style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                     />
                   </th>
+                  <th style={{ padding: '1rem 0.5rem', width: '50px' }}>S.No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Name</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Mobile No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO Office</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Date Issued</th>
@@ -209,7 +253,7 @@ const ApprovedApplications = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredApps.map((app) => (
+                {filteredApps.map((app, index) => (
                   <tr key={app.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <input 
@@ -219,7 +263,9 @@ const ApprovedApplications = () => {
                         style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                       />
                     </td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.customerMobile || app.mobileNo || 'N/A'}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
                     <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{app.rtoOffice}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : 'N/A'}</td>

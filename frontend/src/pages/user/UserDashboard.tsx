@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, CreditCard, FileText, CheckCircle } from 'lucide-react';
 import { auth, db } from '../../firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const UserDashboard = () => {
   const [quota, setQuota] = useState({
@@ -17,8 +17,6 @@ const UserDashboard = () => {
   const [certifiedCount, setCertifiedCount] = useState(0);
 
   useEffect(() => {
-    let unsubscribeSnapshot: (() => void) | null = null;
-
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
@@ -37,38 +35,37 @@ const UserDashboard = () => {
       let totalQuota2Year = 0;
       subsSnap.forEach(doc => { totalQuota2Year += Number(doc.data().subscriptionCount || 0); });
 
-      // Real-time listener: balance recalculates instantly when application is added/removed
+      // Fetch applications once instead of real-time listener
       const appsRef = collection(db, 'applications');
       const q = query(appsRef, where('userId', '==', user.uid));
-      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-        const allApps = snapshot.docs.map(doc => doc.data());
+      const snapshot = await getDocs(q);
+      
+      const allApps = snapshot.docs.map(doc => doc.data());
 
-        const appliedApps = allApps.filter((app: any) =>
-          ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
-        );
-        const certifiedApps = allApps.filter((app: any) => app.status === 'Certified');
+      const appliedApps = allApps.filter((app: any) =>
+        ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+      );
+      const certifiedApps = allApps.filter((app: any) => app.status === 'Certified');
 
-        // Every application consumes 1 Balance Stock. Only 2-Year applications consume Additional Subscription.
-        const usedBalanceStock = allApps.length; 
-        const usedAdditionalSub = allApps.filter((app: any) => app.validity === '2 Years').length;
+      // Every application consumes 1 Balance Stock. Only 2-Year applications consume Additional Subscription.
+      const usedBalanceStock = allApps.length; 
+      const usedAdditionalSub = allApps.filter((app: any) => app.validity === '2 Years').length;
 
-        setAppliedCount(appliedApps.length);
-        setCertifiedCount(certifiedApps.length);
-        setQuota({
-          totalQuota: totalQuota1Year,
-          usedQuota: usedBalanceStock,
-          remainingQuota: totalQuota1Year - usedBalanceStock,
-          totalQuota2Year,
-          usedQuota2Year: usedAdditionalSub,
-          remainingQuota2Year: totalQuota2Year - usedAdditionalSub
-        });
-        setLoading(false);
+      setAppliedCount(appliedApps.length);
+      setCertifiedCount(certifiedApps.length);
+      setQuota({
+        totalQuota: totalQuota1Year,
+        usedQuota: usedBalanceStock,
+        remainingQuota: totalQuota1Year - usedBalanceStock,
+        totalQuota2Year,
+        usedQuota2Year: usedAdditionalSub,
+        remainingQuota2Year: totalQuota2Year - usedAdditionalSub
       });
+      setLoading(false);
     });
 
     return () => {
       unsubscribe();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
   }, []);
 

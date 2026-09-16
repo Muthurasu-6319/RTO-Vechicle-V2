@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Calendar, MapPin, Hash } from 'lucide-react';
 import { auth, db } from '../../firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const Received = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -12,8 +12,6 @@ const Received = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
-    let unsubscribeApps: (() => void) | null = null;
-
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
@@ -33,19 +31,17 @@ const Received = () => {
         console.error('Failed to fetch orders', err);
       }
 
-      // Real-time listener on applications for live balance
+      // Fetch applications once to get used stock
       const appsRef = collection(db, 'applications');
       const q = query(appsRef, where('userId', '==', user.uid));
-      unsubscribeApps = onSnapshot(q, (snapshot) => {
-        const used = snapshot.docs.length;
-        setUsedStock(used); // Balance decreases for EVERY application immediately
-        setLoading(false);
-      });
+      const snapshot = await getDocs(q);
+      const used = snapshot.docs.length;
+      setUsedStock(used); // Balance decreases for EVERY application
+      setLoading(false);
     });
 
     return () => {
       unsubscribe();
-      if (unsubscribeApps) unsubscribeApps();
     };
   }, []);
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, FileText, Loader, Eye } from 'lucide-react';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 import { auth, db } from '../../firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const Certified = () => {
   const [applications, setApplications] = useState<any[]>([]);
@@ -13,34 +13,32 @@ const Certified = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
-    let unsubscribeSnapshot: (() => void) | null = null;
-
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setLoading(false);
         return;
       }
 
-      // Firebase real-time listener - no orderBy to avoid composite index requirement!
-      const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('userId', '==', user.uid));
-
-      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+      try {
+        const appsRef = collection(db, 'applications');
+        const q = query(appsRef, where('userId', '==', user.uid));
+        
+        const snapshot = await getDocs(q);
         const allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
         // Sort by createdAt descending in memory
         allApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         const certified = allApps.filter((app: any) => app.status === 'Certified');
         setApplications(certified);
+      } catch (error) {
+        console.error('Firestore fetch error:', error);
+      } finally {
         setLoading(false);
-      }, (error) => {
-        console.error('Firestore listener error:', error);
-        setLoading(false);
-      });
+      }
     });
 
     return () => {
       unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
   }, []);
 
