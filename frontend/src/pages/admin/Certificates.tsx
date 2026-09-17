@@ -10,7 +10,7 @@ const Certificates = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadingAppId, setUploadingAppId] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'temp' | 'vahan' | null>(null);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
