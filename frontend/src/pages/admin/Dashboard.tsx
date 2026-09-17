@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, FileText, CheckCircle, Package, Activity, CreditCard, HardDrive } from 'lucide-react';
-import UploadButton from '../../components/UploadButton';
+import { db } from '../../firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -15,19 +16,54 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
+      let fetchedFromBackend = false;
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         const res = await fetch(`${backendUrl}/api/stats/admin`);
         if (res.ok) {
           const data = await res.json();
-          setStats(data);
+          if (data && !data.error) {
+            setStats(data);
+            fetchedFromBackend = true;
+          }
         }
       } catch (err) {
-        console.error('Error fetching stats:', err);
+        console.warn('Backend stats fetch failed, using client-side Firestore fallback');
+      }
+
+      // Fallback: Query collections directly from client-side Firestore
+      if (!fetchedFromBackend && db) {
+        try {
+          const [usersSnap, appsSnap, ordersSnap, subsSnap, stockDoc] = await Promise.all([
+            getDocs(collection(db, 'users')),
+            getDocs(collection(db, 'applications')),
+            getDocs(collection(db, 'orders')),
+            getDocs(collection(db, 'subscriptions')),
+            getDoc(doc(db, 'settings', 'dashboard'))
+          ]);
+
+          const allApps = appsSnap.docs.map(d => d.data());
+          const pendingApps = allApps.filter((app: any) => app.status === 'Pending').length;
+          const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
+          const deviceStock = stockDoc.exists() ? (stockDoc.data()?.deviceStock || 0) : 0;
+
+          setStats({
+            totalUsers: usersSnap.size,
+            applications: appsSnap.size,
+            pendingReview: pendingApps,
+            certificatesIssued: certifiedApps,
+            totalOrders: ordersSnap.size,
+            deviceStock: deviceStock,
+            subscriptions: subsSnap.size
+          });
+        } catch (err) {
+          console.error('Error fetching fallback stats:', err);
+        }
       }
     };
     fetchStats();
   }, []);
+
 
   return (
     <div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Search, Edit3, Trash2, Users } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 const AdminManagement = () => {
   const [admins, setAdmins] = useState<any[]>([]);
@@ -22,6 +24,7 @@ const AdminManagement = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    let fetchedAdminsFromBackend = false;
     try {
       const [adminsRes, settingsRes] = await Promise.all([
         fetch(`${backendUrl}/api/admins`),
@@ -29,18 +32,36 @@ const AdminManagement = () => {
       ]);
       if (adminsRes.ok) {
         const adminsData = await adminsRes.json();
-        setAdmins(adminsData);
+        if (Array.isArray(adminsData)) {
+          setAdmins(adminsData);
+          fetchedAdminsFromBackend = true;
+        }
       }
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setManufacturers(settingsData.manufacturers || []);
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend admins fetch failed, using client-side Firestore fallback');
     }
+
+    if (!fetchedAdminsFromBackend && db) {
+      try {
+        const [adminsSnap, settingsDoc] = await Promise.all([
+          getDocs(collection(db, 'admins')),
+          getDoc(doc(db, 'settings', 'config'))
+        ]);
+        setAdmins(adminsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        if (settingsDoc.exists()) {
+          setManufacturers(settingsDoc.data()?.manufacturers || []);
+        }
+      } catch (e) {
+        console.error('Firestore fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
+
 
   useEffect(() => {
     fetchData();

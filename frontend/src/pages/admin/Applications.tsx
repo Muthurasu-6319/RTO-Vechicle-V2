@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle, Clock, X, Copy, Check, Search, User, Eye, Filter, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
+import { db } from '../../firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 const Applications = () => {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const Applications = () => {
 
   const fetchApplications = async () => {
     setLoading(true);
+    let fetchedFromBackend = false;
     try {
       const adminManufacturer = localStorage.getItem('adminManufacturer');
       const url = adminManufacturer 
@@ -28,19 +31,44 @@ const Applications = () => {
       ]);
       if (appsRes.ok) {
         const data = await appsRes.json();
-        const pendingApps = data.filter((app: any) => app.status === 'Pending');
-        setApplications(pendingApps);
+        if (Array.isArray(data)) {
+          const pendingApps = data.filter((app: any) => app.status === 'Pending');
+          setApplications(pendingApps);
+          fetchedFromBackend = true;
+        }
       }
       if (usersRes.ok) {
         const usersData = await usersRes.json();
-        setUsers(usersData);
+        if (Array.isArray(usersData)) {
+          setUsers(usersData);
+        }
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend applications fetch failed, using Firestore Web SDK fallback');
     }
+
+    // Fallback: Fetch directly from client-side Firestore
+    if (!fetchedFromBackend && db) {
+      try {
+        const [appsSnap, usersSnap] = await Promise.all([
+          getDocs(collection(db, 'applications')),
+          getDocs(collection(db, 'users'))
+        ]);
+        const adminManufacturer = localStorage.getItem('adminManufacturer');
+        const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const pendingApps = allApps.filter((app: any) => 
+          app.status === 'Pending' && (!adminManufacturer || app.manufacturer === adminManufacturer)
+        );
+        pendingApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setApplications(pendingApps);
+        setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) {
+        console.error('Firestore applications fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
+
 
   useEffect(() => {
     fetchApplications();

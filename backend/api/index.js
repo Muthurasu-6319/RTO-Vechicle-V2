@@ -76,6 +76,17 @@ try {
   console.error('Firebase Admin initialization error:', error.message);
 }
 
+// Middleware to check if Firebase Admin DB is initialized
+const requireDb = (req, res, next) => {
+  if (!db) {
+    return res.status(503).json({ 
+      error: 'Firebase Admin not configured on server',
+      details: firebaseInitError || 'Missing Firebase Environment Variables (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL)'
+    });
+  }
+  next();
+};
+
 // Basic API Route
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 
@@ -85,6 +96,7 @@ app.get('/api/health', (req, res) => {
     firebaseError: firebaseInitError
   });
 });
+
 
 // Hybrid Upload Route: Images → Cloudinary, PDFs → Backblaze B2
 app.post('/api/upload/file', upload.single('file'), async (req, res) => {

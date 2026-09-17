@@ -1,50 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, FileText, CheckCircle, Loader, Clock, AlertCircle } from 'lucide-react';
-import { auth, db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuthUser, useUserApplications } from '../../hooks/useUserData';
 
 const Installed = () => {
-  const [applications, setApplications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuthUser();
+  const userId = user?.uid;
+  const queryClient = useQueryClient();
+
+  const { data: allApps = [], isLoading: appsLoading } = useUserApplications(userId);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-  useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  const loading = authLoading || (!!userId && appsLoading);
 
-      try {
-        const appsRef = collection(db, 'applications');
-        const q = query(appsRef, where('userId', '==', user.uid));
-        
-        const snapshot = await getDocs(q);
-        const allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Sort by createdAt descending in memory (avoids Firestore composite index)
-        allApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-        // Show: Pending (submitted, waiting admin), Installed, TempCertUploaded, RTOApproved
-        const filtered = allApps.filter((app: any) =>
-          ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
-        );
-        setApplications(filtered);
-      } catch (error) {
-        console.error('Firestore fetch error:', error);
-      } finally {
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      unsubscribeAuth();
-    };
-  }, [navigate]);
+  // Filter pending/installed applications directly from RAM cache
+  const applications = allApps.filter((app: any) =>
+    ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+  );
 
   const handleRtoApprove = async (id: string) => {
     if (!window.confirm('Mark this as RTO Approved?')) return;
@@ -55,7 +31,7 @@ const Installed = () => {
       if (!res.ok) {
         alert('Failed to update status');
       } else {
-        setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'RTOApproved' } : app));
+        queryClient.invalidateQueries({ queryKey: ['applications', userId] });
       }
     } catch (err) {
       console.error(err);

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import UploadButton from '../../components/UploadButton';
 import { Camera, FileText } from 'lucide-react';
 import { auth } from '../../firebase';
 
 const ApplyCertificate = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const [formData, setFormData] = useState({
     imei: '',
     vldSerial: '',
@@ -270,15 +273,18 @@ const ApplyCertificate = () => {
       });
       
       if (res.ok) {
-        // Re-fetch quota to update UI immediately
+        // Invalidate applications & quota queries so RAM cache updates
         const currentUser = auth.currentUser;
         if (currentUser) {
+          queryClient.invalidateQueries({ queryKey: ['applications', currentUser.uid] });
+          queryClient.invalidateQueries({ queryKey: ['quota', currentUser.uid] });
           const quotaRes = await fetch(`${backendUrl}/api/users/${currentUser.uid}/quota`);
           if (quotaRes.ok) {
             const quotaData = await quotaRes.json();
             setQuota(quotaData);
           }
         }
+
         // Reset form
         setFormData({
           imei: '',

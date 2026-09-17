@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Users, Search, Loader, Edit, Trash2, X } from 'lucide-react';
+import { db, createSecondaryUser } from '../../firebase';
+import { collection, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 interface User {
   id: string;
@@ -30,10 +32,24 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await fetch(`${backendUrl}/api/users`);
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
+      let fetchedFromBackend = false;
+      try {
+        const res = await fetch(`${backendUrl}/api/users`);
+        if (res.ok) {
+          const data = await res.json();
+          setUsers(data);
+          fetchedFromBackend = true;
+        }
+      } catch (e) {
+        console.warn('Backend fetchUsers failed, falling back to Firestore Web SDK', e);
+      }
+
+      // Fallback: Fetch directly from client-side Firestore
+      if (!fetchedFromBackend && db) {
+        const snapshot = await getDocs(collection(db, 'users'));
+        const firestoreUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+        firestoreUsers.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setUsers(firestoreUsers);
       }
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -56,24 +72,37 @@ const UserManagement = () => {
     setMessage('');
     
     try {
-      const res = await fetch(`${backendUrl}/api/users/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
+      let createdSuccessfully = false;
+
+      // Try Backend API first
+      try {
+        const res = await fetch(`${backendUrl}/api/users/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        if (res.ok) {
+          createdSuccessfully = true;
+        }
+      } catch (err) {
+        console.warn('Backend user creation failed, attempting client-side fallback...');
+      }
+
+      // Fallback: Create directly via client-side secondary auth app + Firestore doc
+      if (!createdSuccessfully) {
+        await createSecondaryUser(formData.email, formData.password, formData.fullName, formData.mobile);
+        createdSuccessfully = true;
+      }
+
+      if (createdSuccessfully) {
         setMessage('User created successfully!');
         setFormData({ fullName: '', mobile: '', email: '', password: '' });
         setIsCreating(false);
         fetchUsers(); // Refresh list
-      } else {
-        setMessage(`Error: ${data.error}`);
       }
-    } catch (err) {
-      setMessage('Network error while creating user');
+    } catch (err: any) {
+      console.error('Error creating user:', err);
+      setMessage(`Error: ${err.message || 'Failed to create user'}`);
     } finally {
       setLoading(false);
     }
@@ -83,16 +112,21 @@ const UserManagement = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      const res = await fetch(`${backendUrl}/api/users/${uid}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        fetchUsers();
-      } else {
-        alert('Failed to delete user');
+      let deletedOnBackend = false;
+      try {
+        const res = await fetch(`${backendUrl}/api/users/${uid}`, { method: 'DELETE' });
+        if (res.ok) deletedOnBackend = true;
+      } catch (e) {
+        console.warn('Backend delete failed, falling back to Firestore Web SDK');
       }
+
+      if (!deletedOnBackend && db) {
+        await deleteDoc(doc(db, 'users', uid));
+      }
+      fetchUsers();
     } catch (err) {
-      console.error(err);
+      console.error('Delete error:', err);
+      alert('Failed to delete user');
     }
   };
 
@@ -101,21 +135,33 @@ const UserManagement = () => {
     if (!editingUser) return;
     
     try {
-      const res = await fetch(`${backendUrl}/api/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingUser)
-      });
-      if (res.ok) {
-        setEditingUser(null);
-        fetchUsers();
-      } else {
-        alert('Failed to update user');
+      let updatedOnBackend = false;
+      try {
+        const res = await fetch(`${backendUrl}/api/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editingUser)
+        });
+        if (res.ok) updatedOnBackend = true;
+      } catch (e) {
+        console.warn('Backend update failed, falling back to Firestore Web SDK');
       }
+
+      if (!updatedOnBackend && db) {
+        await updateDoc(doc(db, 'users', editingUser.id), {
+          fullName: editingUser.fullName,
+          mobile: editingUser.mobile,
+          email: editingUser.email
+        });
+      }
+      setEditingUser(null);
+      fetchUsers();
     } catch (err) {
-      console.error(err);
+      console.error('Edit error:', err);
+      alert('Failed to update user');
     }
   };
+
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>

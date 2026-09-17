@@ -1,51 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Package, Calendar, MapPin, Hash } from 'lucide-react';
-import { auth, db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useAuthUser, useUserOrders, useUserApplications } from '../../hooks/useUserData';
 
 const Received = () => {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalStock, setTotalStock] = useState(0);
-  const [usedStock, setUsedStock] = useState(0);
+  const { user, loading: authLoading } = useAuthUser();
+  const userId = user?.uid;
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { data: orders = [], isLoading: ordersLoading } = useUserOrders(userId);
+  const { data: applications = [], isLoading: appsLoading } = useUserApplications(userId);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  const loading = authLoading || (!!userId && (ordersLoading || appsLoading));
 
-      // Fetch orders from backend
-      try {
-        const res = await fetch(`${backendUrl}/api/orders/user/${user.uid}`);
-        if (res.ok) {
-          const data = await res.json();
-          setOrders(data);
-          const total = data.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
-          setTotalStock(total);
-        }
-      } catch (err) {
-        console.error('Failed to fetch orders', err);
-      }
-
-      // Fetch applications once to get used stock
-      const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
-      const used = snapshot.docs.length;
-      setUsedStock(used); // Balance decreases for EVERY application
-      setLoading(false);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
+  // Compute total, used, and balance stock from RAM cache
+  const totalStock = orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+  const usedStock = applications.length;
   const balanceStock = totalStock - usedStock;
+
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '2rem' }}>

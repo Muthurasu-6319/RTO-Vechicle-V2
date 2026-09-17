@@ -1,73 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Package, CreditCard, FileText, CheckCircle } from 'lucide-react';
-import { auth, db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useAuthUser, useUserApplications, useUserOrders, useUserSubscriptions } from '../../hooks/useUserData';
 
 const UserDashboard = () => {
-  const [quota, setQuota] = useState({
-    totalQuota: 0,
-    usedQuota: 0,
-    remainingQuota: 0,
-    totalQuota2Year: 0,
-    usedQuota2Year: 0,
-    remainingQuota2Year: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [appliedCount, setAppliedCount] = useState(0);
-  const [certifiedCount, setCertifiedCount] = useState(0);
+  const { user, loading: authLoading } = useAuthUser();
+  const userId = user?.uid;
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  const { data: applications = [], isLoading: appsLoading } = useUserApplications(userId);
+  const { data: orders = [], isLoading: ordersLoading } = useUserOrders(userId);
+  const { data: subscriptions = [], isLoading: subsLoading } = useUserSubscriptions(userId);
 
-      // Fetch total stock from orders (1-year) + subscriptions (2-year)
-      const [ordersSnap, subsSnap] = await Promise.all([
-        getDocs(query(collection(db, 'orders'), where('userId', '==', user.uid))),
-        getDocs(query(collection(db, 'subscriptions'), where('userId', '==', user.uid)))
-      ]);
+  const loading = authLoading || (!!userId && (appsLoading || ordersLoading || subsLoading));
 
-      let totalQuota1Year = 0;
-      ordersSnap.forEach(doc => { totalQuota1Year += Number(doc.data().quantity || 0); });
+  // Compute quotas and application metrics directly from RAM cached data
+  const totalQuota1Year = orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+  const totalQuota2Year = subscriptions.reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
 
-      let totalQuota2Year = 0;
-      subsSnap.forEach(doc => { totalQuota2Year += Number(doc.data().subscriptionCount || 0); });
+  const appliedCount = applications.filter((app: any) =>
+    ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+  ).length;
 
-      // Fetch applications once instead of real-time listener
-      const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
-      
-      const allApps = snapshot.docs.map(doc => doc.data());
+  const certifiedCount = applications.filter((app: any) => app.status === 'Certified').length;
 
-      const appliedApps = allApps.filter((app: any) =>
-        ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
-      );
-      const certifiedApps = allApps.filter((app: any) => app.status === 'Certified');
+  const usedBalanceStock = applications.length; 
+  const usedAdditionalSub = applications.filter((app: any) => app.validity === '2 Years').length;
 
-      // Every application consumes 1 Balance Stock. Only 2-Year applications consume Additional Subscription.
-      const usedBalanceStock = allApps.length; 
-      const usedAdditionalSub = allApps.filter((app: any) => app.validity === '2 Years').length;
-
-      setAppliedCount(appliedApps.length);
-      setCertifiedCount(certifiedApps.length);
-      setQuota({
-        totalQuota: totalQuota1Year,
-        usedQuota: usedBalanceStock,
-        remainingQuota: totalQuota1Year - usedBalanceStock,
-        totalQuota2Year,
-        usedQuota2Year: usedAdditionalSub,
-        remainingQuota2Year: totalQuota2Year - usedAdditionalSub
-      });
-      setLoading(false);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+  const remainingQuota = totalQuota1Year - usedBalanceStock;
+  const remainingQuota2Year = totalQuota2Year - usedAdditionalSub;
 
   return (
     <div>
@@ -85,7 +44,7 @@ const UserDashboard = () => {
           </div>
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Additional Subscription</h3>
-            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : quota.remainingQuota2Year}</p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : remainingQuota2Year}</p>
           </div>
         </div>
 
@@ -119,7 +78,7 @@ const UserDashboard = () => {
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Balance Stock</h3>
             <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {loading ? '...' : quota.remainingQuota}
+              {loading ? '...' : remainingQuota}
             </p>
           </div>
         </div>
@@ -135,3 +94,4 @@ const UserDashboard = () => {
 };
 
 export default UserDashboard;
+

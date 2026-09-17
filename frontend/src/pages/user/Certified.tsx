@@ -1,46 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Download, FileText, Loader, Eye } from 'lucide-react';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
-import { auth, db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useAuthUser, useUserApplications } from '../../hooks/useUserData';
 
 const Certified = () => {
-  const [applications, setApplications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuthUser();
+  const userId = user?.uid;
+
+  const { data: allApps = [], isLoading: appsLoading } = useUserApplications(userId);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-  useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  const loading = authLoading || (!!userId && appsLoading);
 
-      try {
-        const appsRef = collection(db, 'applications');
-        const q = query(appsRef, where('userId', '==', user.uid));
-        
-        const snapshot = await getDocs(q);
-        const allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  // Filter certified applications from RAM cache
+  const applications = allApps.filter((app: any) => app.status === 'Certified');
 
-        // Sort by createdAt descending in memory
-        allApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        const certified = allApps.filter((app: any) => app.status === 'Certified');
-        setApplications(certified);
-      } catch (error) {
-        console.error('Firestore fetch error:', error);
-      } finally {
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      unsubscribeAuth();
-    };
-  }, []);
 
   const formatDateTime = (isoStr: string) => {
     if (!isoStr) return '—';

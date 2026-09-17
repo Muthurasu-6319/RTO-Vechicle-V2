@@ -1,46 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { CreditCard } from 'lucide-react';
-import { auth } from '../../firebase';
+import { useAuthUser, useUserSubscriptions, useUserQuota } from '../../hooks/useUserData';
 
 const Subscription = () => {
-  const [subscriptions, setSubscriptions] = useState<any[]>([]);
-  const [quota, setQuota] = useState<{ totalQuota2Year: number; usedQuota2Year: number; remainingQuota2Year: number } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuthUser();
+  const userId = user?.uid;
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { data: subscriptions = [], isLoading: subsLoading } = useUserSubscriptions(userId);
+  const { data: quota, isLoading: quotaLoading } = useUserQuota(userId);
 
-  useEffect(() => {
-    const fetchData = async (user: any) => {
-      try {
-        const [subsRes, quotaRes] = await Promise.all([
-          fetch(`${backendUrl}/api/subscriptions/user/${user.uid}`),
-          fetch(`${backendUrl}/api/users/${user.uid}/quota`)
-        ]);
-        if (subsRes.ok) {
-          const data = await subsRes.json();
-          setSubscriptions(data);
-        }
-        if (quotaRes.ok) {
-          const qData = await quotaRes.json();
-          setQuota(qData);
-        }
-      } catch (err) {
-        console.error('Failed to fetch subscriptions', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        fetchData(user);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const loading = authLoading || (!!userId && (subsLoading || quotaLoading));
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '2rem' }}>
