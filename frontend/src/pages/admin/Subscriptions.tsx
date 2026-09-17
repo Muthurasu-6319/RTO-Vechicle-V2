@@ -131,23 +131,6 @@ const Subscriptions = () => {
       alert("Please select a User.");
       return;
     }
-    if (!formData.manufacturer) {
-      alert("Please select a Manufacturer.");
-      return;
-    }
-
-    const currentStock = stockStats[formData.manufacturer]?.currentStock || 0;
-    const requestedQty = Number(formData.subscriptionCount);
-    
-    let effectiveRequestedQty = requestedQty;
-    if (editingSub && editingSub.manufacturer === formData.manufacturer) {
-      effectiveRequestedQty = requestedQty - Number(editingSub.subscriptionCount || 0);
-    }
-    
-    if (effectiveRequestedQty > currentStock) {
-      alert(`No stock available for this manufacturer. Current available stock is ${currentStock}.`);
-      return;
-    }
     
     const user = users.find(u => u.id === formData.userId);
     const subData = {
@@ -298,9 +281,6 @@ const Subscriptions = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button onClick={() => openEditModal(sub)} title="Edit" style={{ padding: '0.4rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                          <Edit3 size={16} />
-                        </button>
                         <button onClick={() => handleDelete(sub)} title="Delete" style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Trash2 size={16} />
                         </button>
@@ -340,23 +320,7 @@ const Subscriptions = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
-                  <select 
-                    name="manufacturer" value={formData.manufacturer} onChange={handleChange} required 
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                  >
-                    <option value="">-- Choose Manufacturer --</option>
-                    {manufacturers.map((m, idx) => (
-                      <option key={idx} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  {formData.manufacturer && (
-                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: (stockStats[formData.manufacturer]?.currentStock || 0) <= 0 ? '#ef4444' : '#10b981' }}>
-                      Available Stock: {stockStats[formData.manufacturer]?.currentStock || 0}
-                    </p>
-                  )}
-                </div>
+
 
                 <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Consumer Name</label>
