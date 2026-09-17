@@ -75,20 +75,22 @@ const Certificates = () => {
     fetchApplications();
   }, []);
 
-  // Get user name from users list by userId
+  // Get user name from users list by userId safely
   const getUserName = (userId: string) => {
-    const user = users.find(u => u.id === userId || u.uid === userId);
+    if (!userId || !Array.isArray(users)) return 'Unknown';
+    const user = users.find(u => u && (u.id === userId || u.uid === userId));
     return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
   };
 
   const getMobileNumber = (app: any) => {
+    if (!app) return '—';
     if (app.mobileNumber) return app.mobileNumber;
     if (app.customerMobile) return app.customerMobile;
     if (app.mobileNo) return app.mobileNo;
     if (app.mobile) return app.mobile;
     if (app.phone) return app.phone;
-    if (app.userId) {
-      const u = users.find((usr: any) => usr.id === app.userId || usr.uid === app.userId);
+    if (app.userId && Array.isArray(users)) {
+      const u = users.find((usr: any) => usr && (usr.id === app.userId || usr.uid === app.userId));
       if (u && (u.mobile || u.phone || u.mobileNumber)) {
         return u.mobile || u.phone || u.mobileNumber;
       }
@@ -136,12 +138,16 @@ const Certificates = () => {
     }
   };
 
-  const filteredApps = applications.filter(app => {
-    const q = searchQuery.toLowerCase();
+  const filteredApps = (applications || []).filter(app => {
+    if (!app) return false;
+    const q = (searchQuery || '').toLowerCase();
+    const mob = getMobileNumber(app).toLowerCase();
     return (
-      (app.vehicleNo && app.vehicleNo.toLowerCase().includes(q)) ||
-      (app.imei && app.imei.toLowerCase().includes(q)) ||
-      (app.vldSerial && app.vldSerial.toLowerCase().includes(q))
+      (app.vehicleNo && String(app.vehicleNo).toLowerCase().includes(q)) ||
+      (app.imei && String(app.imei).toLowerCase().includes(q)) ||
+      (app.vldSerial && String(app.vldSerial).toLowerCase().includes(q)) ||
+      (app.customerName && String(app.customerName).toLowerCase().includes(q)) ||
+      mob.includes(q)
     );
   });
 

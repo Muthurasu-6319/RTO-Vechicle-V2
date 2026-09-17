@@ -73,18 +73,20 @@ const ApprovedApplications = () => {
 
 
   const getUserName = (userId: string) => {
-    const user = users.find(u => u.id === userId || u.uid === userId);
+    if (!userId || !Array.isArray(users)) return 'Unknown';
+    const user = users.find(u => u && (u.id === userId || u.uid === userId));
     return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
   };
 
   const getMobileNumber = (app: any) => {
+    if (!app) return '—';
     if (app.mobileNumber) return app.mobileNumber;
     if (app.customerMobile) return app.customerMobile;
     if (app.mobileNo) return app.mobileNo;
     if (app.mobile) return app.mobile;
     if (app.phone) return app.phone;
-    if (app.userId) {
-      const u = users.find((usr: any) => usr.id === app.userId || usr.uid === app.userId);
+    if (app.userId && Array.isArray(users)) {
+      const u = users.find((usr: any) => usr && (usr.id === app.userId || usr.uid === app.userId));
       if (u && (u.mobile || u.phone || u.mobileNumber)) {
         return u.mobile || u.phone || u.mobileNumber;
       }
