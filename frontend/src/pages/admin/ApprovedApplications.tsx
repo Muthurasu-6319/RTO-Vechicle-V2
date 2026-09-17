@@ -77,6 +77,21 @@ const ApprovedApplications = () => {
     return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
   };
 
+  const getMobileNumber = (app: any) => {
+    if (app.mobileNumber) return app.mobileNumber;
+    if (app.customerMobile) return app.customerMobile;
+    if (app.mobileNo) return app.mobileNo;
+    if (app.mobile) return app.mobile;
+    if (app.phone) return app.phone;
+    if (app.userId) {
+      const u = users.find((usr: any) => usr.id === app.userId || usr.uid === app.userId);
+      if (u && (u.mobile || u.phone || u.mobileNumber)) {
+        return u.mobile || u.phone || u.mobileNumber;
+      }
+    }
+    return '—';
+  };
+
   const formatDateTime = (isoStr: string) => {
     if (!isoStr) return '—';
     try {
@@ -91,12 +106,14 @@ const ApprovedApplications = () => {
 
   const filteredApps = applications.filter(app => {
     const q = searchQuery.toLowerCase();
+    const mob = getMobileNumber(app).toLowerCase();
     const matchesSearch = (
       (app.vehicleNo && app.vehicleNo.toLowerCase().includes(q)) ||
       (app.imei && app.imei.toLowerCase().includes(q)) ||
       (app.vldSerial && app.vldSerial.toLowerCase().includes(q)) ||
       (app.customerName && app.customerName.toLowerCase().includes(q)) ||
-      (app.rtoOffice && app.rtoOffice.toLowerCase().includes(q))
+      (app.rtoOffice && app.rtoOffice.toLowerCase().includes(q)) ||
+      mob.includes(q)
     );
 
     let matchesDate = true;
@@ -273,7 +290,7 @@ const ApprovedApplications = () => {
                   </th>
                   <th style={{ padding: '1rem 0.5rem', width: '50px' }}>S.No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Name</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>Mobile No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO Office</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Date Issued</th>
@@ -294,7 +311,7 @@ const ApprovedApplications = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
-                    <td style={{ padding: '1rem 0.5rem' }}>{app.customerMobile || app.mobileNo || 'N/A'}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{getMobileNumber(app)}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
                     <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{app.rtoOffice}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : 'N/A'}</td>

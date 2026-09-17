@@ -81,6 +81,21 @@ const Certificates = () => {
     return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
   };
 
+  const getMobileNumber = (app: any) => {
+    if (app.mobileNumber) return app.mobileNumber;
+    if (app.customerMobile) return app.customerMobile;
+    if (app.mobileNo) return app.mobileNo;
+    if (app.mobile) return app.mobile;
+    if (app.phone) return app.phone;
+    if (app.userId) {
+      const u = users.find((usr: any) => usr.id === app.userId || usr.uid === app.userId);
+      if (u && (u.mobile || u.phone || u.mobileNumber)) {
+        return u.mobile || u.phone || u.mobileNumber;
+      }
+    }
+    return '—';
+  };
+
   // Format createdAt ISO string to readable date + time
   const formatDateTime = (isoStr: string) => {
     if (!isoStr) return '—';
@@ -230,6 +245,7 @@ const Certificates = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>#</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Name</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
                   <th style={{ padding: '1rem 0.5rem' }}>VLD S.No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Status</th>
@@ -251,6 +267,7 @@ const Certificates = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{getMobileNumber(app)}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.vldSerial}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.rtoOffice}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>
