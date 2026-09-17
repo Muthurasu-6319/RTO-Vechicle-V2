@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, PlusCircle, Calendar, Hash, FileText, Trash2, Edit, CheckCircle, Package, CreditCard, UserPlus, Users, ArrowRight, Search, Download } from 'lucide-react';
+import SearchableUserSelect from '../../components/SearchableUserSelect';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, deleteDoc } from 'firebase/firestore';
 
@@ -432,15 +433,12 @@ const PurchaseEntry = () => {
             <form onSubmit={handleAllocateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
-                <select 
-                  name="userId" value={allocateForm.userId} onChange={(e) => setAllocateForm(prev => ({ ...prev, userId: e.target.value }))} required 
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                >
-                  <option value="">-- Choose User --</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email || u.mobile})</option>
-                  ))}
-                </select>
+                <SearchableUserSelect
+                  users={users}
+                  value={allocateForm.userId}
+                  onChange={(userId) => setAllocateForm(prev => ({ ...prev, userId }))}
+                  required
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

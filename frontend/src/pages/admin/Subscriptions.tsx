@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, PlusCircle, CheckCircle, Clock, User, Search, Calendar, Hash, FileText, Check, AlertCircle, Edit, Trash2 } from 'lucide-react';
 import UploadButton from '../../components/UploadButton';
+import SearchableUserSelect from '../../components/SearchableUserSelect';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
@@ -309,15 +310,12 @@ const Subscriptions = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
-                  <select 
-                    name="userId" value={formData.userId} onChange={handleChange} required
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                  >
-                    <option value="">-- Choose User --</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.fullName || u.name} ({u.email})</option>
-                    ))}
-                  </select>
+                  <SearchableUserSelect
+                    users={users}
+                    value={formData.userId}
+                    onChange={(userId) => setFormData(prev => ({ ...prev, userId }))}
+                    required
+                  />
                 </div>
 
 
