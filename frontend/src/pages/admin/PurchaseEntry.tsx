@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Search, Trash2, Download, Package, UserPlus } from 'lucide-react';
+import { ShoppingCart, PlusCircle, Calendar, Hash, FileText, Trash2, Edit, CheckCircle, Package, CreditCard, UserPlus, Users, ArrowRight, Search, Download } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, getDocs, doc, getDoc, addDoc, deleteDoc } from 'firebase/firestore';
 
 const PurchaseEntry = () => {
   const [entries, setEntries] = useState<any[]>([]);
@@ -11,6 +13,8 @@ const PurchaseEntry = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allocateModalOpen, setAllocateModalOpen] = useState(false);
+  const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const [selectedPurchaseEntry, setSelectedPurchaseEntry] = useState<any>(null);
   const [allocateForm, setAllocateForm] = useState({
     userId: '',
@@ -29,6 +33,7 @@ const PurchaseEntry = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    let fetchedFromBackend = false;
     try {
       const [entriesRes, settingsRes, statsRes, usersRes] = await Promise.all([
         fetch(`${backendUrl}/api/purchase-entries`),
@@ -38,26 +43,49 @@ const PurchaseEntry = () => {
       ]);
       
       if (entriesRes.ok) {
-        setEntries(await entriesRes.json());
+        const data = await entriesRes.json();
+        if (Array.isArray(data)) {
+          setEntries(data);
+          fetchedFromBackend = true;
+        }
       }
-      
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setManufacturers(settingsData.manufacturers || []);
       }
-
       if (statsRes.ok) {
         setStockStats(await statsRes.json());
       }
-
       if (usersRes.ok) {
-        setUsers(await usersRes.json());
+        const usersData = await usersRes.json();
+        if (Array.isArray(usersData)) {
+          setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+        }
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend purchase-entries fetch failed, using Firestore Web SDK fallback');
     }
+
+    if (!fetchedFromBackend && db) {
+      try {
+        const [entriesSnap, settingsDoc, usersSnap] = await Promise.all([
+          getDocs(collection(db, 'purchaseEntries')),
+          getDoc(doc(db, 'settings', 'config')),
+          getDocs(collection(db, 'users'))
+        ]);
+        const allEntries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allEntries.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setEntries(allEntries);
+
+        if (settingsDoc.exists()) {
+          setManufacturers(settingsDoc.data()?.manufacturers || []);
+        }
+        setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter((u: any) => u.role !== 'admin'));
+      } catch (e) {
+        console.error('Firestore purchase entries fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
 
   useEffect(() => {

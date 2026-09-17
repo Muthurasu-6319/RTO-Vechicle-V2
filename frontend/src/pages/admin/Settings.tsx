@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Trash2, Edit2, Check, X } from 'lucide-react';
+import { db } from '../../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const Settings = () => {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
@@ -11,6 +13,7 @@ const Settings = () => {
 
   const [editingManu, setEditingManu] = useState<{index: number, val: string} | null>(null);
   const [editingRto, setEditingRto] = useState<{index: number, val: string} | null>(null);
+  const [saveMessage, setSaveMessage] = useState('');
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -20,31 +23,61 @@ const Settings = () => {
 
   const fetchSettings = async () => {
     setLoading(true);
+    let fetchedFromBackend = false;
     try {
       const res = await fetch(`${backendUrl}/api/settings`);
       if (res.ok) {
         const data = await res.json();
         setManufacturers(data.manufacturers || []);
         setRtoOffices(data.rtoOffices || []);
+        fetchedFromBackend = true;
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend settings fetch failed, using Firestore Web SDK fallback');
     }
+
+    if (!fetchedFromBackend && db) {
+      try {
+        const settingsDoc = await getDoc(doc(db, 'settings', 'config'));
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          setManufacturers(data.manufacturers || []);
+          setRtoOffices(data.rtoOffices || []);
+        }
+      } catch (e) {
+        console.error('Firestore settings fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
 
   const saveSettings = async (newManus: string[], newRtos: string[]) => {
     try {
-      await fetch(`${backendUrl}/api/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manufacturers: newManus, rtoOffices: newRtos })
-      });
+      let savedOnBackend = false;
+      try {
+        const res = await fetch(`${backendUrl}/api/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manufacturers: newManus, rtoOffices: newRtos })
+        });
+        if (res.ok) savedOnBackend = true;
+      } catch (e) {
+        console.warn('Backend saveSettings failed, falling back to Firestore Web SDK');
+      }
+
+      if (!savedOnBackend && db) {
+        await setDoc(doc(db, 'settings', 'config'), {
+          manufacturers: newManus,
+          rtoOffices: newRtos
+        }, { merge: true });
+      }
+
       setManufacturers(newManus);
       setRtoOffices(newRtos);
+      setSaveMessage('Settings saved successfully!');
+      setTimeout(() => setSaveMessage(''), 3000);
     } catch (err) {
-      console.error(err);
+      console.error('Error saving settings:', err);
       alert('Failed to save settings');
     }
   };

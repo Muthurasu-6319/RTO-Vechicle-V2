@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Search, Edit3, Trash2 } from 'lucide-react';
+import { Package, PlusCircle, CheckCircle, Clock, Truck, User, Search, MapPin, Calendar, Hash, ShieldCheck, AlertCircle, Edit, Trash2 } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const Orders = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [stockMap, setStockMap] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [stockStats, setStockStats] = useState<Record<string, any>>({});
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<any | null>(null);
+
   const [formData, setFormData] = useState({
     userId: '',
     item: '',
@@ -28,6 +30,7 @@ const Orders = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    let fetchedFromBackend = false;
     try {
       const [ordersRes, usersRes, settingsRes, statsRes] = await Promise.all([
         fetch(`${backendUrl}/api/orders`),
@@ -37,9 +40,13 @@ const Orders = () => {
       ]);
       
       if (ordersRes.ok && usersRes.ok) {
-        setOrders(await ordersRes.json());
+        const ordersData = await ordersRes.json();
         const usersData = await usersRes.json();
-        setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+        if (Array.isArray(ordersData) && Array.isArray(usersData)) {
+          setOrders(ordersData);
+          setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+          fetchedFromBackend = true;
+        }
       }
       
       if (settingsRes.ok) {
@@ -48,13 +55,36 @@ const Orders = () => {
       }
 
       if (statsRes.ok) {
-        setStockStats(await statsRes.json());
+        const statsData = await statsRes.json();
+        setStockMap(statsData);
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend orders fetch failed, using Firestore Web SDK fallback');
     }
+
+    if (!fetchedFromBackend && db) {
+      try {
+        const [ordersSnap, usersSnap, settingsDoc] = await Promise.all([
+          getDocs(collection(db, 'orders')),
+          getDocs(collection(db, 'users')),
+          getDoc(doc(db, 'settings', 'config'))
+        ]);
+
+        const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allOrders.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setOrders(allOrders);
+
+        const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
+
+        if (settingsDoc.exists()) {
+          setManufacturers(settingsDoc.data()?.manufacturers || []);
+        }
+      } catch (e) {
+        console.error('Firestore orders fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
 
   useEffect(() => {

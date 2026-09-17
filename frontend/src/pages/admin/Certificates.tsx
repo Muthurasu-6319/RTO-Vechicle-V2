@@ -1,46 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle, FileText, Check, Search, Trash2, User } from 'lucide-react';
+import { Award, Upload, CheckCircle, Search, Clock, FileText, Trash2, Eye, User } from 'lucide-react';
 import UploadButton from '../../components/UploadButton';
+import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
+import { db } from '../../firebase';
+import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const Certificates = () => {
   const [applications, setApplications] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // For handling upload modal state
-  const [uploadingAppId, setUploadingAppId] = useState<string | null>(null);
-  const [uploadType, setUploadType] = useState<'temp' | 'vahan'>('temp');
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadType, setUploadType] = useState<'temp' | 'vahan' | null>(null);
+  const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   const fetchApplications = async () => {
     setLoading(true);
+    let fetchedFromBackend = false;
     try {
       const adminManufacturer = localStorage.getItem('adminManufacturer');
       const url = adminManufacturer 
         ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
         : `${backendUrl}/api/applications`;
-      const res = await fetch(url);
+      const [res, usersRes] = await Promise.all([
+        fetch(url),
+        fetch(`${backendUrl}/api/users`)
+      ]);
       if (res.ok) {
         const data = await res.json();
-        // Only show Installed, TempCertUploaded, RTOApproved
-        const filtered = data.filter((app: any) => 
-          ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
-        );
-        setApplications(filtered);
+        if (Array.isArray(data)) {
+          const filtered = data.filter((app: any) => 
+            ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+          );
+          setApplications(filtered);
+          fetchedFromBackend = true;
+        }
       }
-      const usersRes = await fetch(`${backendUrl}/api/users`);
       if (usersRes.ok) {
         const usersData = await usersRes.json();
-        setUsers(usersData);
+        if (Array.isArray(usersData)) {
+          setUsers(usersData);
+        }
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend certificates fetch failed, using Firestore Web SDK fallback');
     }
+
+    if (!fetchedFromBackend && db) {
+      try {
+        const adminManufacturer = localStorage.getItem('adminManufacturer');
+        const [appsSnap, usersSnap] = await Promise.all([
+          getDocs(collection(db, 'applications')),
+          getDocs(collection(db, 'users'))
+        ]);
+        const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const filteredApps = allApps.filter((app: any) => 
+          ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
+          (!adminManufacturer || app.manufacturer === adminManufacturer)
+        );
+        filteredApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setApplications(filteredApps);
+        setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) {
+        console.error('Firestore fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
 
   useEffect(() => {

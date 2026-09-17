@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Download, Search, Trash2, Eye } from 'lucide-react';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
+import { db } from '../../firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 const ApprovedApplications = () => {
   const [applications, setApplications] = useState<any[]>([]);
@@ -18,30 +20,57 @@ const ApprovedApplications = () => {
   useEffect(() => {
     const fetchApplications = async () => {
       setLoading(true);
+      let fetchedFromBackend = false;
       try {
         const adminManufacturer = localStorage.getItem('adminManufacturer');
         const url = adminManufacturer 
           ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
           : `${backendUrl}/api/applications`;
-        const res = await fetch(url);
+        const [res, usersRes] = await Promise.all([
+          fetch(url),
+          fetch(`${backendUrl}/api/users`)
+        ]);
         if (res.ok) {
           const data = await res.json();
-          const filtered = data.filter((app: any) => app.status === 'Certified');
-          setApplications(filtered);
+          if (Array.isArray(data)) {
+            const filtered = data.filter((app: any) => app.status === 'Certified');
+            setApplications(filtered);
+            fetchedFromBackend = true;
+          }
         }
-        const usersRes = await fetch(`${backendUrl}/api/users`);
         if (usersRes.ok) {
           const usersData = await usersRes.json();
-          setUsers(usersData);
+          if (Array.isArray(usersData)) {
+            setUsers(usersData);
+          }
         }
       } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+        console.warn('Backend approved applications fetch failed, using Firestore Web SDK fallback');
       }
+
+      if (!fetchedFromBackend && db) {
+        try {
+          const adminManufacturer = localStorage.getItem('adminManufacturer');
+          const [appsSnap, usersSnap] = await Promise.all([
+            getDocs(collection(db, 'applications')),
+            getDocs(collection(db, 'users'))
+          ]);
+          const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const certifiedApps = allApps.filter((app: any) => 
+            app.status === 'Certified' && (!adminManufacturer || app.manufacturer === adminManufacturer)
+          );
+          certifiedApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          setApplications(certifiedApps);
+          setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (e) {
+          console.error('Firestore fallback failed:', e);
+        }
+      }
+      setLoading(false);
     };
     fetchApplications();
   }, []);
+
 
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId || u.uid === userId);

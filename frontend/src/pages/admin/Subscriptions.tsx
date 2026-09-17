@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Search, Edit3, Trash2, CreditCard } from 'lucide-react';
+import { CreditCard, PlusCircle, CheckCircle, Clock, User, Search, Calendar, Hash, FileText, Check, AlertCircle, Edit, Trash2 } from 'lucide-react';
 import UploadButton from '../../components/UploadButton';
+import { db } from '../../firebase';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const Subscriptions = () => {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [manufacturers, setManufacturers] = useState<string[]>([]);
-  const [stockStats, setStockStats] = useState<Record<string, any>>({});
+  const [stockMap, setStockMap] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -26,6 +28,7 @@ const Subscriptions = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    let fetchedFromBackend = false;
     try {
       const [subsRes, usersRes, settingsRes, statsRes] = await Promise.all([
         fetch(`${backendUrl}/api/subscriptions`),
@@ -35,9 +38,13 @@ const Subscriptions = () => {
       ]);
       
       if (subsRes.ok && usersRes.ok) {
-        setSubscriptions(await subsRes.json());
+        const subsData = await subsRes.json();
         const usersData = await usersRes.json();
-        setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+        if (Array.isArray(subsData) && Array.isArray(usersData)) {
+          setSubscriptions(subsData);
+          setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+          fetchedFromBackend = true;
+        }
       }
 
       if (settingsRes.ok) {
@@ -46,13 +53,36 @@ const Subscriptions = () => {
       }
 
       if (statsRes.ok) {
-        setStockStats(await statsRes.json());
+        const statsData = await statsRes.json();
+        setStockMap(statsData);
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.warn('Backend subscriptions fetch failed, using Firestore Web SDK fallback');
     }
+
+    if (!fetchedFromBackend && db) {
+      try {
+        const [subsSnap, usersSnap, settingsDoc] = await Promise.all([
+          getDocs(collection(db, 'subscriptions')),
+          getDocs(collection(db, 'users')),
+          getDoc(doc(db, 'settings', 'config'))
+        ]);
+
+        const allSubs = subsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allSubs.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setSubscriptions(allSubs);
+
+        const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
+
+        if (settingsDoc.exists()) {
+          setManufacturers(settingsDoc.data()?.manufacturers || []);
+        }
+      } catch (e) {
+        console.error('Firestore subscriptions fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
 
   useEffect(() => {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Check, Trash2 } from 'lucide-react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface Notification {
   id: string;
@@ -36,25 +37,40 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ isAdmin = false }) 
   }, []);
 
   const fetchNotifications = async (uid: string | null) => {
-    try {
-      const fetchUid = isAdmin ? 'admin' : uid;
-      
-      if (!fetchUid) {
-        setLoading(false);
-        return;
-      }
+    const fetchUid = isAdmin ? 'admin' : uid;
+    if (!fetchUid) {
+      setLoading(false);
+      return;
+    }
 
+    let fetchedFromBackend = false;
+    try {
       const res = await fetch(`${backendUrl}/api/notifications/${fetchUid}`);
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data);
+        if (Array.isArray(data)) {
+          setNotifications(data);
+          fetchedFromBackend = true;
+        }
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
+      console.warn('Backend notifications fetch failed, using Firestore Web SDK fallback');
     }
+
+    if (!fetchedFromBackend && db) {
+      try {
+        const q = query(collection(db, 'notifications'), where('userId', '==', fetchUid));
+        const snapshot = await getDocs(q);
+        const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
+        notifs.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setNotifications(notifs.slice(0, 20));
+      } catch (e) {
+        console.error('Firestore notifications fallback failed:', e);
+      }
+    }
+    setLoading(false);
   };
+
 
   useEffect(() => {
     fetchNotifications(currentUserUid);
