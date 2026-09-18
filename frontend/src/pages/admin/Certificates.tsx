@@ -250,13 +250,14 @@ const Certificates = () => {
                   </th>
                   <th style={{ padding: '1rem 0.5rem' }}>#</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Upload Certificate</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>VLD S.No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Status</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Username</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>VLD S.No</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -273,10 +274,33 @@ const Certificates = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>
+                      {app.status === 'Installed' && (
+                        <button 
+                          onClick={() => { setUploadType('temp'); setUploadingAppId(app.id); }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
+                        >
+                          <Upload size={14} /> Upload Temp Cert
+                        </button>
+                      )}
+                      
+                      {app.status === 'TempCertUploaded' && (
+                        <span style={{ color: '#b45309', backgroundColor: '#fef3c7', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                          Waiting for User Approval
+                        </span>
+                      )}
+
+                      {app.status === 'RTOApproved' && (
+                        <button 
+                          onClick={() => { setUploadType('vahan'); setUploadingAppId(app.id); }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
+                        >
+                          <Upload size={14} /> Upload Vahan Cert
+                        </button>
+                      )}
+                    </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{getMobileNumber(app)}</td>
-                    <td style={{ padding: '1rem 0.5rem' }}>{app.imei || '—'}</td>
-                    <td style={{ padding: '1rem 0.5rem' }}>{app.vldSerial}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.rtoOffice}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <span style={{ 
@@ -301,30 +325,10 @@ const Certificates = () => {
                         </div>
                       </div>
                     </td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.imei || '—'}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.vldSerial || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                        {app.status === 'Installed' && (
-                          <button 
-                            onClick={() => { setUploadType('temp'); setUploadingAppId(app.id); }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                          >
-                            <Upload size={16} /> Upload Temp Cert
-                          </button>
-                        )}
-                        
-                        {app.status === 'TempCertUploaded' && (
-                          <span style={{ color: '#64748b', fontSize: '0.875rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>Waiting for User Approval</span>
-                        )}
-
-                        {app.status === 'RTOApproved' && (
-                          <button 
-                            onClick={() => { setUploadType('vahan'); setUploadingAppId(app.id); }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                          >
-                            <Upload size={16} /> Upload Vahan Cert
-                          </button>
-                        )}
-
                         <button 
                           onClick={() => handleDelete(app.id)}
                           title="Delete Application"

@@ -29,6 +29,16 @@ const Orders = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
+  const parseOrderNumber = (orderId: string) => {
+    if (!orderId) return 999999;
+    const num = parseInt(orderId.replace(/\D/g, ''), 10);
+    return isNaN(num) ? 999999 : num;
+  };
+
+  const sortOrdersAscending = (list: any[]) => {
+    return [...list].sort((a, b) => parseOrderNumber(a.orderId) - parseOrderNumber(b.orderId));
+  };
+
   const fetchData = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
@@ -44,7 +54,7 @@ const Orders = () => {
         const ordersData = await ordersRes.json();
         const usersData = await usersRes.json();
         if (Array.isArray(ordersData) && Array.isArray(usersData)) {
-          setOrders(ordersData);
+          setOrders(sortOrdersAscending(ordersData));
           setUsers(usersData.filter((u: any) => u.role !== 'admin'));
           fetchedFromBackend = true;
         }
@@ -72,8 +82,7 @@ const Orders = () => {
         ]);
 
         const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        allOrders.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        setOrders(allOrders);
+        setOrders(sortOrdersAscending(allOrders));
 
         const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
@@ -101,21 +110,7 @@ const Orders = () => {
   };
 
   const generateNextOrderId = () => {
-    const existingIds = orders
-      .map(o => o.orderId)
-      .filter(id => id && id.startsWith('V'))
-      .map(id => parseInt(id.substring(1), 10))
-      .filter(num => !isNaN(num))
-      .sort((a, b) => a - b);
-    
-    let nextIdNum = 1;
-    for (let i = 0; i < existingIds.length; i++) {
-      if (existingIds[i] === nextIdNum) {
-        nextIdNum++;
-      } else if (existingIds[i] > nextIdNum) {
-        break; // Found a gap
-      }
-    }
+    const nextIdNum = orders.length + 1;
     return `V${String(nextIdNum).padStart(3, '0')}`;
   };
 

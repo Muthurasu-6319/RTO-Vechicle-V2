@@ -296,9 +296,9 @@ const ApprovedApplications = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Validity</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Reg Date</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO Office</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Date Issued</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>Status</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -319,17 +319,9 @@ const ApprovedApplications = () => {
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.imei || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.validity || '—'}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.registrationDate || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{app.rtoOffice}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : 'N/A'}</td>
-                    <td style={{ padding: '1rem 0.5rem' }}>
-                      <span style={{ 
-                        padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.875rem', fontWeight: 500,
-                        backgroundColor: '#d1fae5', color: '#047857', whiteSpace: 'nowrap'
-                      }}>
-                        <CheckCircle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }}/>
-                        Certified
-                      </span>
-                    </td>
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                         <button 
