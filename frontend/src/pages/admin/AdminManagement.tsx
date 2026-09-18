@@ -25,40 +25,73 @@ const AdminManagement = () => {
   const fetchData = async () => {
     setLoading(true);
     let fetchedAdminsFromBackend = false;
+    const fetchedManus: string[] = [];
+    const allAdmins: any[] = [];
+    
     try {
-      const [adminsRes, settingsRes] = await Promise.all([
+      const [adminsRes, settingsRes, purchaseRes] = await Promise.all([
         fetch(`${backendUrl}/api/admins`),
-        fetch(`${backendUrl}/api/settings`)
+        fetch(`${backendUrl}/api/settings`),
+        fetch(`${backendUrl}/api/purchase-entries`)
       ]);
+      
       if (adminsRes.ok) {
         const adminsData = await adminsRes.json();
         if (Array.isArray(adminsData)) {
-          setAdmins(adminsData);
+          allAdmins.push(...adminsData);
           fetchedAdminsFromBackend = true;
         }
       }
+      
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
-        setManufacturers(settingsData.manufacturers || []);
+        if (Array.isArray(settingsData.manufacturers)) {
+          fetchedManus.push(...settingsData.manufacturers);
+        }
+      }
+
+      if (purchaseRes.ok) {
+        const purchaseData = await purchaseRes.json();
+        if (Array.isArray(purchaseData)) {
+          const pm = purchaseData.map((p: any) => p.manufacturer).filter(Boolean);
+          fetchedManus.push(...pm);
+        }
       }
     } catch (err) {
       console.warn('Backend admins fetch failed, using client-side Firestore fallback');
     }
 
-    if (!fetchedAdminsFromBackend && db) {
+    if (db) {
       try {
-        const [adminsSnap, settingsDoc] = await Promise.all([
+        const [adminsSnap, settingsDoc, purchaseSnap] = await Promise.all([
           getDocs(collection(db, 'admins')),
-          getDoc(doc(db, 'settings', 'config'))
+          getDoc(doc(db, 'settings', 'config')),
+          getDocs(collection(db, 'purchaseEntries'))
         ]);
-        setAdmins(adminsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        if (settingsDoc.exists()) {
-          setManufacturers(settingsDoc.data()?.manufacturers || []);
+        
+        adminsSnap.docs.forEach(d => {
+          const data = { id: d.id, ...d.data() };
+          if (!allAdmins.some((a: any) => a.id === d.id || (a.email && a.email === data.email))) {
+            allAdmins.push(data);
+          }
+        });
+
+        if (settingsDoc.exists() && Array.isArray(settingsDoc.data()?.manufacturers)) {
+          fetchedManus.push(...settingsDoc.data().manufacturers);
         }
+        const pm = purchaseSnap.docs.map(d => d.data().manufacturer).filter(Boolean);
+        fetchedManus.push(...pm);
       } catch (e) {
         console.error('Firestore fallback failed:', e);
       }
     }
+
+    setAdmins(allAdmins);
+
+    const fallbackManus = ['HITECH', 'HI TECH', 'hari'];
+    const uniqueManus = Array.from(new Set([...fetchedManus, ...fallbackManus].map(m => String(m).trim()))).filter(Boolean);
+    setManufacturers(uniqueManus);
+
     setLoading(false);
   };
 

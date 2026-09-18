@@ -270,9 +270,9 @@ app.get('/api/admins', async (req, res) => {
   try {
     const admins = [...inMemoryAdmins];
     try {
-      const snapshot = await db.collection('admins').orderBy('createdAt', 'desc').get();
+      const snapshot = await db.collection('admins').get();
       snapshot.forEach(doc => {
-        if (!admins.some(a => a.email === doc.data().email)) {
+        if (!admins.some(a => a.id === doc.id || (a.email && a.email === doc.data().email))) {
           admins.push({ id: doc.id, ...doc.data() });
         }
       });
