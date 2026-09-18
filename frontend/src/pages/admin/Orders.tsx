@@ -35,8 +35,31 @@ const Orders = () => {
     return isNaN(num) ? 999999 : num;
   };
 
-  const sortOrdersAscending = (list: any[]) => {
-    return [...list].sort((a, b) => parseOrderNumber(a.orderId) - parseOrderNumber(b.orderId));
+  const processAndSyncOrders = (list: any[]) => {
+    const sorted = [...list].sort((a, b) => {
+      const numA = parseOrderNumber(a.orderId);
+      const numB = parseOrderNumber(b.orderId);
+      if (numA !== numB && numA !== 999999 && numB !== 999999) {
+        return numA - numB;
+      }
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+
+    const normalized = sorted.map((order, idx) => {
+      const expectedId = `V${String(idx + 1).padStart(3, '0')}`;
+      if (order.orderId !== expectedId) {
+        if (order.id) {
+          fetch(`${backendUrl}/api/orders/${order.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...order, orderId: expectedId })
+          }).catch(err => console.warn('Order ID sync failed:', err));
+        }
+      }
+      return { ...order, orderId: expectedId };
+    });
+
+    return normalized;
   };
 
   const fetchData = async () => {
@@ -54,7 +77,7 @@ const Orders = () => {
         const ordersData = await ordersRes.json();
         const usersData = await usersRes.json();
         if (Array.isArray(ordersData) && Array.isArray(usersData)) {
-          setOrders(sortOrdersAscending(ordersData));
+          setOrders(processAndSyncOrders(ordersData));
           setUsers(usersData.filter((u: any) => u.role !== 'admin'));
           fetchedFromBackend = true;
         }
@@ -82,7 +105,7 @@ const Orders = () => {
         ]);
 
         const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setOrders(sortOrdersAscending(allOrders));
+        setOrders(processAndSyncOrders(allOrders));
 
         const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
