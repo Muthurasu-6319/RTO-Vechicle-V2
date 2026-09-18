@@ -244,6 +244,11 @@ const PurchaseEntry = () => {
     );
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(filteredEntries.length / itemsPerPage) || 1;
+  const paginatedEntries = filteredEntries.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -256,7 +261,7 @@ const PurchaseEntry = () => {
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px' }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
-              type="text" placeholder="Search Invoice, Manufacturer..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              type="text" placeholder="Search Invoice, Manufacturer..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               style={{ border: 'none', outline: 'none', width: '100%', backgroundColor: 'transparent' }}
             />
           </div>
@@ -304,6 +309,47 @@ const PurchaseEntry = () => {
       </div>
 
       <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>
+        {/* Pagination controls above table */}
+        {filteredEntries.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+            <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+              Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredEntries.length)} of {filteredEntries.length} entries
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : 'white', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                &laquo; First
+              </button>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : 'white', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                &lsaquo; Prev
+              </button>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', padding: '0 0.5rem' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage >= totalPages ? '#f1f5f9' : 'white', color: currentPage >= totalPages ? '#94a3b8' : '#334155', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                Next &rsaquo;
+              </button>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage >= totalPages ? '#f1f5f9' : 'white', color: currentPage >= totalPages ? '#94a3b8' : '#334155', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                Last End &raquo;
+              </button>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3rem' }}>Loading...</div>
         ) : entries.length === 0 ? (
@@ -322,7 +368,7 @@ const PurchaseEntry = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredEntries.map((entry) => (
+                {paginatedEntries.map((entry) => (
                   <tr key={entry.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 500 }}>{entry.date}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.manufacturer}</td>

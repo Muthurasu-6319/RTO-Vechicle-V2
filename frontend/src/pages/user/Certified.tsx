@@ -66,6 +66,11 @@ const Certified = () => {
     }
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(applications.length / itemsPerPage) || 1;
+  const paginatedApps = applications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div style={{ paddingBottom: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -74,6 +79,47 @@ const Certified = () => {
       </div>
 
       <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>
+        {/* Pagination controls above table */}
+        {applications.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+            <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+              Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, applications.length)} of {applications.length} entries
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : 'white', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                &laquo; First
+              </button>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : 'white', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                &lsaquo; Prev
+              </button>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', padding: '0 0.5rem' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage >= totalPages ? '#f1f5f9' : 'white', color: currentPage >= totalPages ? '#94a3b8' : '#334155', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                Next &rsaquo;
+              </button>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage >= totalPages ? '#f1f5f9' : 'white', color: currentPage >= totalPages ? '#94a3b8' : '#334155', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                Last End &raquo;
+              </button>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3rem' }}>Loading...</div>
         ) : applications.length === 0 ? (
@@ -91,15 +137,16 @@ const Certified = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Mobile</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Validity</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg Date</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Issued Date</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Vahan Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {applications.map((app, index) => (
+                {paginatedApps.map((app, index) => (
                   <tr key={app.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '1rem 0.5rem' }}>{index + 1}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{((currentPage - 1) * itemsPerPage) + index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.imei}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.vldSerial}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.manufacturer}</td>
@@ -107,6 +154,7 @@ const Certified = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.mobileNumber}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.validity || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{app.registrationDate}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : '-'}</td>
                     

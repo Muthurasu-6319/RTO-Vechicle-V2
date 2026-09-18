@@ -207,6 +207,31 @@ const Subscriptions = () => {
     );
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(filteredSubs.length / itemsPerPage) || 1;
+  const paginatedSubs = filteredSubs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const downloadCSV = () => {
+    if (subscriptions.length === 0) {
+      alert("No data available to download.");
+      return;
+    }
+    const headers = ["User,User Email,Consumer Name,Subscription Count,Date,Approved"];
+    const rows = subscriptions.map(sub => {
+      return `"${sub.userName || ''}","${sub.userEmail || ''}","${sub.consumerName || ''}","${sub.subscriptionCount || ''}","${sub.date || ''}","${sub.approved ? 'Approved' : 'Pending'}"`;
+    });
+    const csvContent = headers.concat(rows).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Subscriptions_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -215,14 +240,21 @@ const Subscriptions = () => {
           <p style={{ color: 'var(--text-secondary)' }}>Manage subscription certificates for users.</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '300px' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px' }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
-              type="text" placeholder="Search Consumer, User..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              type="text" placeholder="Search Consumer, User..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               style={{ border: 'none', outline: 'none', width: '100%', backgroundColor: 'transparent' }}
             />
           </div>
+
+          <button 
+            onClick={downloadCSV}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
+          >
+            <Download size={18} /> Download Report
+          </button>
           
           <button 
             onClick={openCreateModal}
@@ -234,6 +266,47 @@ const Subscriptions = () => {
       </div>
 
       <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>
+        {/* Pagination controls above table */}
+        {filteredSubs.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+            <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+              Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredSubs.length)} of {filteredSubs.length} entries
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : 'white', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                &laquo; First
+              </button>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : 'white', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                &lsaquo; Prev
+              </button>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', padding: '0 0.5rem' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage >= totalPages ? '#f1f5f9' : 'white', color: currentPage >= totalPages ? '#94a3b8' : '#334155', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                Next &rsaquo;
+              </button>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', backgroundColor: currentPage >= totalPages ? '#f1f5f9' : 'white', color: currentPage >= totalPages ? '#94a3b8' : '#334155', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+              >
+                Last End &raquo;
+              </button>
+            </div>
+          </div>
+        )}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3rem' }}>Loading...</div>
         ) : subscriptions.length === 0 ? (
@@ -254,9 +327,11 @@ const Subscriptions = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredSubs.map((sub, idx) => (
+                {paginatedSubs.map((sub, idx) => (
                   <tr key={sub.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{idx + 1}</td>
+                    <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>
+                      {((currentPage - 1) * itemsPerPage) + idx + 1}
+                    </td>
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <div style={{ fontWeight: 500 }}>{sub.userName}</div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{sub.userEmail}</div>
