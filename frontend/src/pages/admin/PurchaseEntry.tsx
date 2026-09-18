@@ -335,13 +335,6 @@ const PurchaseEntry = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.remarks || '-'}</td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
                       <button
-                        onClick={() => openAllocateModal(entry)}
-                        title="Allocate to User"
-                        style={{ padding: '0.4rem', backgroundColor: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', marginRight: '0.5rem' }}
-                      >
-                        <UserPlus size={16} />
-                      </button>
-                      <button
                         onClick={() => handleDelete(entry.id)}
                         title="Delete Entry"
                         style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
@@ -407,55 +400,6 @@ const PurchaseEntry = () => {
                 <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.75rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
                   Save Entry
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {allocateModalOpen && selectedPurchaseEntry && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem'
-        }}>
-          <div className="glass-panel" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b' }}>Allocate to User</h3>
-              <button onClick={() => setAllocateModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
-            </div>
-            
-            <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' }}>
-              <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.25rem' }}><strong>Manufacturer:</strong> {selectedPurchaseEntry.manufacturer}</p>
-              <p style={{ fontSize: '0.875rem', color: '#475569' }}><strong>Available Qty in Entry:</strong> {selectedPurchaseEntry.quantity}</p>
-            </div>
-
-            <form onSubmit={handleAllocateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
-                <SearchableUserSelect
-                  users={users}
-                  value={allocateForm.userId}
-                  onChange={(userId) => setAllocateForm(prev => ({ ...prev, userId }))}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Stock Quantity</label>
-                  <input type="number" min="0" value={allocateForm.stockQty} onChange={(e) => setAllocateForm(prev => ({ ...prev, stockQty: e.target.value }))} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Subscription Qty</label>
-                  <input type="number" min="0" value={allocateForm.subQty} onChange={(e) => setAllocateForm(prev => ({ ...prev, subQty: e.target.value }))} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setAllocateModalOpen(false)} style={{ flex: 1, padding: '0.75rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
-                  Allocate
                 </button>
               </div>
             </form>
