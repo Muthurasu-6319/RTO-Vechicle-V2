@@ -72,10 +72,22 @@ const ApprovedApplications = () => {
   }, []);
 
 
-  const getUserName = (userId: string) => {
-    if (!userId || !Array.isArray(users)) return 'Unknown';
-    const user = users.find(u => u && (u.id === userId || u.uid === userId));
-    return user ? (user.fullName || user.name || 'Unknown') : 'Unknown';
+  const getUserName = (param: any) => {
+    if (!param) return '—';
+    if (typeof param === 'string') {
+      if (!Array.isArray(users)) return '—';
+      const u = users.find((usr: any) => usr && (usr.id === param || usr.uid === param));
+      return u ? (u.fullName || u.name || u.email || '—') : '—';
+    }
+    if (typeof param === 'object') {
+      if (param.userName) return param.userName;
+      if (param.appliedBy) return param.appliedBy;
+      if (param.userId && Array.isArray(users)) {
+        const u = users.find((usr: any) => usr && (usr.id === param.userId || usr.uid === param.userId));
+        if (u) return u.fullName || u.name || u.email || '—';
+      }
+    }
+    return '—';
   };
 
   const getMobileNumber = (app: any) => {
@@ -109,13 +121,15 @@ const ApprovedApplications = () => {
   const filteredApps = applications.filter(app => {
     const q = searchQuery.toLowerCase();
     const mob = getMobileNumber(app).toLowerCase();
+    const uName = getUserName(app).toLowerCase();
     const matchesSearch = (
       (app.vehicleNo && app.vehicleNo.toLowerCase().includes(q)) ||
       (app.imei && app.imei.toLowerCase().includes(q)) ||
       (app.vldSerial && app.vldSerial.toLowerCase().includes(q)) ||
       (app.customerName && app.customerName.toLowerCase().includes(q)) ||
       (app.rtoOffice && app.rtoOffice.toLowerCase().includes(q)) ||
-      mob.includes(q)
+      mob.includes(q) ||
+      uName.includes(q)
     );
 
     let matchesDate = true;
@@ -236,9 +250,9 @@ const ApprovedApplications = () => {
       alert("No data available to download.");
       return;
     }
-    const headers = ["Customer Name,Mobile Number,Vehicle No,IMEI No,Validity,Reg Date,RTO Office,Date Issued"];
+    const headers = ["Customer Name,Mobile Number,Vehicle No,User Name,IMEI No,Validity,Reg Date,RTO Office,Date Issued"];
     const rows = applications.map(app => {
-      return `"${app.customerName || ''}","${getMobileNumber(app)}","${app.vehicleNo || ''}","${app.imei || ''}","${app.validity || ''}","${app.registrationDate || ''}","${app.rtoOffice || ''}","${app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : ''}"`;
+      return `"${app.customerName || ''}","${getMobileNumber(app)}","${app.vehicleNo || ''}","${getUserName(app)}","${app.imei || ''}","${app.validity || ''}","${app.registrationDate || ''}","${app.rtoOffice || ''}","${app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : ''}"`;
     });
     const csvContent = headers.concat(rows).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -366,6 +380,7 @@ const ApprovedApplications = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>User Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Validity</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Reg Date</th>
@@ -389,6 +404,7 @@ const ApprovedApplications = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{getMobileNumber(app)}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
+                    <td style={{ padding: '1rem 0.5rem', color: '#4f46e5', fontWeight: 500 }}>{getUserName(app)}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.imei || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.validity || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.registrationDate || '—'}</td>
