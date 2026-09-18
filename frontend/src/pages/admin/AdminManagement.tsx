@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Search, Edit3, Trash2, Users } from 'lucide-react';
 import { db } from '../../firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const AdminManagement = () => {
   const [admins, setAdmins] = useState<any[]>([]);
@@ -29,10 +29,9 @@ const AdminManagement = () => {
     const allAdmins: any[] = [];
     
     try {
-      const [adminsRes, settingsRes, purchaseRes] = await Promise.all([
+      const [adminsRes, settingsRes] = await Promise.all([
         fetch(`${backendUrl}/api/admins`),
-        fetch(`${backendUrl}/api/settings`),
-        fetch(`${backendUrl}/api/purchase-entries`)
+        fetch(`${backendUrl}/api/settings`)
       ]);
       
       if (adminsRes.ok) {
@@ -49,29 +48,20 @@ const AdminManagement = () => {
           fetchedManus.push(...settingsData.manufacturers);
         }
       }
-
-      if (purchaseRes.ok) {
-        const purchaseData = await purchaseRes.json();
-        if (Array.isArray(purchaseData)) {
-          const pm = purchaseData.map((p: any) => p.manufacturer).filter(Boolean);
-          fetchedManus.push(...pm);
-        }
-      }
     } catch (err) {
       console.warn('Backend admins fetch failed, using client-side Firestore fallback');
     }
 
     if (db) {
       try {
-        const [adminsSnap, settingsDoc, purchaseSnap] = await Promise.all([
+        const [adminsSnap, settingsDoc] = await Promise.all([
           getDocs(collection(db, 'admins')),
-          getDoc(doc(db, 'settings', 'config')),
-          getDocs(collection(db, 'purchaseEntries'))
+          getDoc(doc(db, 'settings', 'config'))
         ]);
         
         adminsSnap.docs.forEach(d => {
           const data = { id: d.id, ...d.data() };
-          if (!allAdmins.some((a: any) => a.id === d.id || (a.email && a.email === data.email))) {
+          if (!allAdmins.some((a: any) => a.id === d.id || (a.email && a.email.toLowerCase() === (data.email || '').toLowerCase()))) {
             allAdmins.push(data);
           }
         });
@@ -79,8 +69,6 @@ const AdminManagement = () => {
         if (settingsDoc.exists() && Array.isArray(settingsDoc.data()?.manufacturers)) {
           fetchedManus.push(...settingsDoc.data().manufacturers);
         }
-        const pm = purchaseSnap.docs.map(d => d.data().manufacturer).filter(Boolean);
-        fetchedManus.push(...pm);
       } catch (e) {
         console.error('Firestore fallback failed:', e);
       }
@@ -88,13 +76,11 @@ const AdminManagement = () => {
 
     setAdmins(allAdmins);
 
-    const fallbackManus = ['HITECH', 'HI TECH', 'hari'];
-    const uniqueManus = Array.from(new Set([...fetchedManus, ...fallbackManus].map(m => String(m).trim()))).filter(Boolean);
+    const uniqueManus = Array.from(new Set(fetchedManus.map(m => String(m).trim()))).filter(Boolean);
     setManufacturers(uniqueManus);
 
     setLoading(false);
   };
-
 
   useEffect(() => {
     fetchData();
@@ -137,21 +123,41 @@ const AdminManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingAdmin ? `${backendUrl}/api/admins/${editingAdmin.id}` : `${backendUrl}/api/admins`;
-      const method = editingAdmin ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (res.ok) {
-        fetchData();
-        closeModal();
-      } else {
-        alert('Failed to save admin');
+      let saved = false;
+      const payload = { ...formData };
+
+      try {
+        const url = editingAdmin ? `${backendUrl}/api/admins/${editingAdmin.id}` : `${backendUrl}/api/admins`;
+        const method = editingAdmin ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) saved = true;
+      } catch (err) {
+        console.warn('Backend save admin failed, attempting Firestore Web SDK fallback');
       }
+
+      if (!saved && db) {
+        try {
+          if (editingAdmin && editingAdmin.id) {
+            await updateDoc(doc(db, 'admins', editingAdmin.id), payload);
+          } else {
+            await addDoc(collection(db, 'admins'), {
+              ...payload,
+              createdAt: new Date().toISOString()
+            });
+          }
+          saved = true;
+        } catch (fErr) {
+          console.error('Firestore save admin failed:', fErr);
+        }
+      }
+
+      fetchData();
+      closeModal();
     } catch (error) {
       console.error('Error saving admin:', error);
       alert('Error saving admin');
@@ -160,18 +166,26 @@ const AdminManagement = () => {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this admin?')) {
+      let deleted = false;
       try {
         const res = await fetch(`${backendUrl}/api/admins/${id}`, {
           method: 'DELETE'
         });
-        if (res.ok) {
-          fetchData();
-        } else {
-          alert('Failed to delete admin');
-        }
+        if (res.ok) deleted = true;
       } catch (error) {
-        console.error('Error deleting admin:', error);
+        console.warn('Backend admin delete failed, attempting Firestore fallback', error);
       }
+
+      if (!deleted && db && id) {
+        try {
+          await deleteDoc(doc(db, 'admins', id));
+          deleted = true;
+        } catch (e) {
+          console.error('Firestore delete admin failed:', e);
+        }
+      }
+
+      setAdmins(prev => prev.filter(a => a.id !== id));
     }
   };
 
