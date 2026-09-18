@@ -35,15 +35,21 @@ const AdminLogin = () => {
           localStorage.removeItem('adminManufacturer');
         }
         
-        // Redirect based on role
-        if (data.role === 'standard') {
+        // Redirect based on role (standard / Standard Admin vs full admin)
+        const isStandard = data.role && data.role.toLowerCase().includes('standard');
+        if (isStandard) {
           navigate('/admin/applications');
         } else {
           navigate('/admin/dashboard');
         }
       } else {
         const errData = await res.json();
-        setError(errData.error || 'Invalid credentials. Please try again.');
+        const msg = errData.error || '';
+        if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Quota')) {
+          setError('Database quota exceeded. Please contact system administrator.');
+        } else {
+          setError(msg || 'Invalid credentials. Please try again.');
+        }
       }
     } catch (err) {
       console.error('Login error:', err);

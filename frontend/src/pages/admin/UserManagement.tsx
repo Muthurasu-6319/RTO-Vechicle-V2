@@ -14,6 +14,8 @@ interface User {
 const UserManagement = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   
   const [formData, setFormData] = useState({
@@ -34,11 +36,23 @@ const UserManagement = () => {
     try {
       let fetchedFromBackend = false;
       try {
-        const res = await fetch(`${backendUrl}/api/users`);
+        const [res, ordersRes, subsRes] = await Promise.all([
+          fetch(`${backendUrl}/api/users`),
+          fetch(`${backendUrl}/api/orders`),
+          fetch(`${backendUrl}/api/subscriptions`)
+        ]);
         if (res.ok) {
           const data = await res.json();
           setUsers(data);
           fetchedFromBackend = true;
+        }
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          if (Array.isArray(ordersData)) setOrders(ordersData);
+        }
+        if (subsRes.ok) {
+          const subsData = await subsRes.json();
+          if (Array.isArray(subsData)) setSubscriptions(subsData);
         }
       } catch (e) {
         console.warn('Backend fetchUsers failed, falling back to Firestore Web SDK', e);
@@ -46,16 +60,34 @@ const UserManagement = () => {
 
       // Fallback: Fetch directly from client-side Firestore
       if (!fetchedFromBackend && db) {
-        const snapshot = await getDocs(collection(db, 'users'));
-        const firestoreUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+        const [usersSnap, ordersSnap, subsSnap] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'orders')),
+          getDocs(collection(db, 'subscriptions'))
+        ]);
+        const firestoreUsers = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
         firestoreUsers.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setUsers(firestoreUsers);
+        setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setSubscriptions(subsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
       setLoadingUsers(false);
     }
+  };
+
+  const getUserStockCount = (u: any) => {
+    if (!u) return 0;
+    const userOrders = orders.filter(o => o.userId === u.id || o.userId === u.uid || (u.email && o.userEmail === u.email));
+    return userOrders.reduce((sum, o) => sum + Number(o.quantity || 0), 0);
+  };
+
+  const getUserSubCount = (u: any) => {
+    if (!u) return 0;
+    const userSubs = subscriptions.filter(s => s.userId === u.id || s.userId === u.uid || (u.email && s.userEmail === u.email));
+    return userSubs.reduce((sum, s) => sum + Number(s.subscriptionCount || 0), 0);
   };
 
   useEffect(() => {
@@ -236,6 +268,8 @@ const UserManagement = () => {
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0', color: 'var(--text-secondary)' }}>
                     <th style={{ padding: '1rem 0.5rem' }}>Name</th>
+                    <th style={{ padding: '1rem 0.5rem' }}>Stock Count</th>
+                    <th style={{ padding: '1rem 0.5rem' }}>Subscription Count</th>
                     <th style={{ padding: '1rem 0.5rem' }}>Email</th>
                     <th style={{ padding: '1rem 0.5rem' }}>Mobile</th>
                     <th style={{ padding: '1rem 0.5rem' }}>Joined On</th>
@@ -243,14 +277,27 @@ const UserManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '1rem 0.5rem', fontWeight: 500 }}>{user.fullName}</td>
-                      <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{user.email}</td>
-                      <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{user.mobile}</td>
-                      <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
+                  {users.map((user) => {
+                    const stockCount = getUserStockCount(user);
+                    const subCount = getUserSubCount(user);
+                    return (
+                      <tr key={user.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '1rem 0.5rem', fontWeight: 500 }}>{user.fullName}</td>
+                        <td style={{ padding: '1rem 0.5rem' }}>
+                          <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#e0e7ff', color: '#4f46e5', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
+                            {stockCount}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 0.5rem' }}>
+                          <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f3e8ff', color: '#7c3aed', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600 }}>
+                            {subCount}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{user.email}</td>
+                        <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{user.mobile}</td>
+                        <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>
+                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
+                        </td>
                       <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                         <button 
                           onClick={() => setEditingUser(user)}
@@ -266,7 +313,8 @@ const UserManagement = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>

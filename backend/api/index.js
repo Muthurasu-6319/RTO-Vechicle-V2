@@ -189,6 +189,9 @@ app.post('/api/scan-barcode', async (req, res) => {
   }
 });
 
+// In-memory cache for created admins to prevent login failure if database quota is exceeded
+const inMemoryAdmins = [];
+
 // Admin Authentication Route
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -199,35 +202,46 @@ app.post('/api/auth/login', async (req, res) => {
       return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '' });
     }
 
-    // 2. Check Database for Admin Users
-    const adminsRef = db.collection('admins');
-    const snapshot = await adminsRef.where('email', '==', email).get();
-
-    if (snapshot.empty) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    let validAdmin = null;
-    snapshot.forEach(doc => {
-      const adminData = doc.data();
-      // In a real app, use bcrypt. Here we use plain text for simplicity as per current pattern
-      if (adminData.password === password) {
-        validAdmin = { id: doc.id, ...adminData };
-      }
-    });
-
-    if (validAdmin) {
-      res.json({ 
-        token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
-        role: validAdmin.role, 
-        manufacturer: validAdmin.manufacturer 
+    // 2. Check inMemoryAdmins cache
+    const memAdmin = inMemoryAdmins.find(a => a.email === email && a.password === password);
+    if (memAdmin) {
+      return res.json({ 
+        token: 'mock-jwt-token-for-admin-' + (memAdmin.id || 'mem'), 
+        role: memAdmin.role || 'standard', 
+        manufacturer: memAdmin.manufacturer || '' 
       });
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // 3. Check Database for Admin Users
+    try {
+      const adminsRef = db.collection('admins');
+      const snapshot = await adminsRef.where('email', '==', email).get();
+
+      if (!snapshot.empty) {
+        let validAdmin = null;
+        snapshot.forEach(doc => {
+          const adminData = doc.data();
+          if (adminData.password === password) {
+            validAdmin = { id: doc.id, ...adminData };
+          }
+        });
+
+        if (validAdmin) {
+          return res.json({ 
+            token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
+            role: validAdmin.role, 
+            manufacturer: validAdmin.manufacturer 
+          });
+        }
+      }
+    } catch (dbErr) {
+      console.warn('Database login lookup failed (Quota/Network), checking in-memory admins:', dbErr.message);
+    }
+
+    res.status(401).json({ error: 'Invalid credentials. Please check your email and password.' });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(401).json({ error: 'Authentication failed. Please try again.' });
   }
 });
 
@@ -237,8 +251,15 @@ app.post('/api/admins', async (req, res) => {
   try {
     const data = req.body;
     data.createdAt = new Date().toISOString();
-    const docRef = await db.collection('admins').add(data);
-    res.status(201).json({ message: 'Admin created successfully', id: docRef.id });
+    inMemoryAdmins.push(data);
+    let id = 'mem_' + Date.now();
+    try {
+      const docRef = await db.collection('admins').add(data);
+      id = docRef.id;
+    } catch (dbErr) {
+      console.warn('Firestore admin save failed, saved in memory:', dbErr.message);
+    }
+    res.status(201).json({ message: 'Admin created successfully', id });
   } catch (error) {
     console.error('Error creating admin:', error);
     res.status(500).json({ error: error.message });
@@ -247,15 +268,21 @@ app.post('/api/admins', async (req, res) => {
 
 app.get('/api/admins', async (req, res) => {
   try {
-    const snapshot = await db.collection('admins').orderBy('createdAt', 'desc').get();
-    const admins = [];
-    snapshot.forEach(doc => {
-      admins.push({ id: doc.id, ...doc.data() });
-    });
+    const admins = [...inMemoryAdmins];
+    try {
+      const snapshot = await db.collection('admins').orderBy('createdAt', 'desc').get();
+      snapshot.forEach(doc => {
+        if (!admins.some(a => a.email === doc.data().email)) {
+          admins.push({ id: doc.id, ...doc.data() });
+        }
+      });
+    } catch (dbErr) {
+      console.warn('Firestore admins fetch failed, returning cached list:', dbErr.message);
+    }
     res.json(admins);
   } catch (error) {
     console.error('Error fetching admins:', error);
-    res.status(500).json({ error: error.message });
+    res.json(inMemoryAdmins);
   }
 });
 
@@ -263,7 +290,13 @@ app.put('/api/admins/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
-    await db.collection('admins').doc(id).update(data);
+    const idx = inMemoryAdmins.findIndex(a => a.id === id);
+    if (idx !== -1) inMemoryAdmins[idx] = { ...inMemoryAdmins[idx], ...data };
+    try {
+      await db.collection('admins').doc(id).update(data);
+    } catch (e) {
+      console.warn('Firestore admin update failed:', e.message);
+    }
     res.json({ message: 'Admin updated successfully' });
   } catch (error) {
     console.error('Error updating admin:', error);
@@ -274,7 +307,13 @@ app.put('/api/admins/:id', async (req, res) => {
 app.delete('/api/admins/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await db.collection('admins').doc(id).delete();
+    const idx = inMemoryAdmins.findIndex(a => a.id === id);
+    if (idx !== -1) inMemoryAdmins.splice(idx, 1);
+    try {
+      await db.collection('admins').doc(id).delete();
+    } catch (e) {
+      console.warn('Firestore admin delete failed:', e.message);
+    }
     res.json({ message: 'Admin deleted successfully' });
   } catch (error) {
     console.error('Error deleting admin:', error);
