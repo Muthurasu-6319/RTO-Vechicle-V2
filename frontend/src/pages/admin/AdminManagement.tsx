@@ -124,7 +124,11 @@ const AdminManagement = () => {
     e.preventDefault();
     try {
       let saved = false;
-      const payload = { ...formData };
+      const payload = { 
+        ...formData,
+        email: formData.email.trim(),
+        oldEmail: editingAdmin ? editingAdmin.email : undefined
+      };
 
       try {
         const url = editingAdmin ? `${backendUrl}/api/admins/${editingAdmin.id}` : `${backendUrl}/api/admins`;
@@ -145,15 +149,22 @@ const AdminManagement = () => {
           if (editingAdmin && editingAdmin.id) {
             await updateDoc(doc(db, 'admins', editingAdmin.id), payload);
           } else {
-            await addDoc(collection(db, 'admins'), {
+            const newDoc = await addDoc(collection(db, 'admins'), {
               ...payload,
               createdAt: new Date().toISOString()
             });
+            payload.id = newDoc.id;
           }
           saved = true;
         } catch (fErr) {
           console.error('Firestore save admin failed:', fErr);
         }
+      }
+
+      if (editingAdmin) {
+        setAdmins(prev => prev.map(a => a.id === editingAdmin.id ? { ...a, ...payload } : a));
+      } else {
+        setAdmins(prev => [payload, ...prev]);
       }
 
       fetchData();

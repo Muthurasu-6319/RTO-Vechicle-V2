@@ -195,15 +195,19 @@ const inMemoryAdmins = [];
 // Admin Authentication Route
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
+  const cleanEmail = (email || '').toLowerCase().trim();
   
   try {
     // 1. Check Hardcoded Superadmin Fallback
-    if (email === 'admin@gmail.com' && password === 'admin') {
+    if (cleanEmail === 'admin@gmail.com' && password === 'admin') {
       return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '' });
     }
 
-    // 2. Check inMemoryAdmins cache
-    const memAdmin = inMemoryAdmins.find(a => a.email === email && a.password === password);
+    // 2. Check inMemoryAdmins cache (case-insensitive email)
+    const memAdmin = inMemoryAdmins.find(a => 
+      a.email && a.email.toLowerCase().trim() === cleanEmail && 
+      a.password === password
+    );
     if (memAdmin) {
       return res.json({ 
         token: 'mock-jwt-token-for-admin-' + (memAdmin.id || 'mem'), 
@@ -215,18 +219,27 @@ app.post('/api/auth/login', async (req, res) => {
     // 3. Check Database for Admin Users
     try {
       const adminsRef = db.collection('admins');
-      const snapshot = await adminsRef.where('email', '==', email).get();
+      const snapshot = await adminsRef.get();
 
       if (!snapshot.empty) {
         let validAdmin = null;
         snapshot.forEach(doc => {
           const adminData = doc.data();
-          if (adminData.password === password) {
+          const adminEmail = (adminData.email || '').toLowerCase().trim();
+          if (adminEmail === cleanEmail && adminData.password === password) {
             validAdmin = { id: doc.id, ...adminData };
           }
         });
 
         if (validAdmin) {
+          // Cache in memory for fast future logins
+          const existingIdx = inMemoryAdmins.findIndex(a => a.id === validAdmin.id || (a.email && a.email.toLowerCase().trim() === cleanEmail));
+          if (existingIdx !== -1) {
+            inMemoryAdmins[existingIdx] = validAdmin;
+          } else {
+            inMemoryAdmins.push(validAdmin);
+          }
+
           return res.json({ 
             token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
             role: validAdmin.role, 
@@ -238,7 +251,7 @@ app.post('/api/auth/login', async (req, res) => {
       console.warn('Database login lookup failed (Quota/Network), checking in-memory admins:', dbErr.message);
     }
 
-    res.status(401).json({ error: 'Invalid credentials. Please check your email and password.' });
+    res.status(401).json({ error: 'Invalid email or password. Please try again.' });
   } catch (error) {
     console.error('Login error:', error);
     res.status(401).json({ error: 'Authentication failed. Please try again.' });
@@ -251,7 +264,6 @@ app.post('/api/admins', async (req, res) => {
   try {
     const data = req.body;
     data.createdAt = new Date().toISOString();
-    inMemoryAdmins.push(data);
     let id = 'mem_' + Date.now();
     try {
       const docRef = await db.collection('admins').add(data);
@@ -259,6 +271,8 @@ app.post('/api/admins', async (req, res) => {
     } catch (dbErr) {
       console.warn('Firestore admin save failed, saved in memory:', dbErr.message);
     }
+    data.id = id;
+    inMemoryAdmins.push(data);
     res.status(201).json({ message: 'Admin created successfully', id });
   } catch (error) {
     console.error('Error creating admin:', error);
@@ -272,8 +286,9 @@ app.get('/api/admins', async (req, res) => {
     try {
       const snapshot = await db.collection('admins').get();
       snapshot.forEach(doc => {
-        if (!admins.some(a => a.id === doc.id || (a.email && a.email === doc.data().email))) {
-          admins.push({ id: doc.id, ...doc.data() });
+        const dData = doc.data();
+        if (!admins.some(a => a.id === doc.id || (a.email && dData.email && a.email.toLowerCase() === dData.email.toLowerCase()))) {
+          admins.push({ id: doc.id, ...dData });
         }
       });
     } catch (dbErr) {
@@ -290,8 +305,21 @@ app.put('/api/admins/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
-    const idx = inMemoryAdmins.findIndex(a => a.id === id);
-    if (idx !== -1) inMemoryAdmins[idx] = { ...inMemoryAdmins[idx], ...data };
+    const oldEmail = (data.oldEmail || '').toLowerCase().trim();
+    const newEmail = (data.email || '').toLowerCase().trim();
+    
+    const idx = inMemoryAdmins.findIndex(a => 
+      a.id === id || 
+      (oldEmail && a.email && a.email.toLowerCase().trim() === oldEmail) ||
+      (newEmail && a.email && a.email.toLowerCase().trim() === newEmail)
+    );
+
+    if (idx !== -1) {
+      inMemoryAdmins[idx] = { ...inMemoryAdmins[idx], ...data, id: inMemoryAdmins[idx].id || id };
+    } else {
+      inMemoryAdmins.push({ id, ...data });
+    }
+
     try {
       await db.collection('admins').doc(id).update(data);
     } catch (e) {
@@ -307,7 +335,7 @@ app.put('/api/admins/:id', async (req, res) => {
 app.delete('/api/admins/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const idx = inMemoryAdmins.findIndex(a => a.id === id);
+    const idx = inMemoryAdmins.findIndex(a => a.id === id || (a.email && a.email.toLowerCase().trim() === id.toLowerCase().trim()));
     if (idx !== -1) inMemoryAdmins.splice(idx, 1);
     try {
       await db.collection('admins').doc(id).delete();
