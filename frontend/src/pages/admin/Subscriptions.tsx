@@ -99,6 +99,8 @@ const Subscriptions = () => {
 
   const openCreateModal = () => {
     resetForm();
+    const today = new Date().toISOString().split('T')[0];
+    setFormData(prev => ({ ...prev, date: today }));
     setIsModalOpen(true);
   };
 
