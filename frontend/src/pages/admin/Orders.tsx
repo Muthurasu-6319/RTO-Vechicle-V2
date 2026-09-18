@@ -157,7 +157,7 @@ const Orders = () => {
     }
 
     const mfgKey = formData.item ? formData.item.replace(/\s+/g, '').toUpperCase() : '';
-    const currentStock = stockStats[mfgKey]?.currentStock || 0;
+    const currentStock = stockMap[mfgKey]?.currentStock || 0;
     const requestedQty = Number(formData.quantity);
     
     // Calculate effective requested quantity based on whether we are editing or creating
@@ -390,7 +390,7 @@ const Orders = () => {
                   </select>
                   {formData.item && (() => {
                     const mKey = formData.item.replace(/\s+/g, '').toUpperCase();
-                    const availStock = stockStats[mKey]?.currentStock || 0;
+                    const availStock = stockMap[mKey]?.currentStock || 0;
                     return (
                       <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: availStock <= 0 ? '#ef4444' : '#10b981' }}>
                         Available Stock: {availStock}

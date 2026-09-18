@@ -704,8 +704,13 @@ app.get('/api/settings', async (req, res) => {
       return res.json(cachedSettings);
     }
 
-    const docRef = db.collection('settings').doc('general');
-    const doc = await docRef.get();
+    let docRef = db.collection('settings').doc('general');
+    let doc = await docRef.get();
+    
+    if (!doc.exists) {
+      docRef = db.collection('settings').doc('config');
+      doc = await docRef.get();
+    }
     
     if (!doc.exists) {
       // Return default if not exists
@@ -725,8 +730,11 @@ app.get('/api/settings', async (req, res) => {
 app.put('/api/settings', async (req, res) => {
   try {
     const data = req.body; // { manufacturers: [...], rtoOffices: [...] }
-    const docRef = db.collection('settings').doc('general');
-    await docRef.set(data, { merge: true });
+    await Promise.all([
+      db.collection('settings').doc('general').set(data, { merge: true }),
+      db.collection('settings').doc('config').set(data, { merge: true })
+    ]);
+    cache.del('settings'); // Invalidate cache so new settings show immediately
     res.json({ message: 'Settings updated successfully' });
   } catch (error) {
     console.error('Error updating settings:', error);

@@ -65,11 +65,19 @@ const Settings = () => {
         console.warn('Backend saveSettings failed, falling back to Firestore Web SDK');
       }
 
-      if (!savedOnBackend && db) {
-        await setDoc(doc(db, 'settings', 'config'), {
-          manufacturers: newManus,
-          rtoOffices: newRtos
-        }, { merge: true });
+      if (db) {
+        try {
+          await setDoc(doc(db, 'settings', 'config'), {
+            manufacturers: newManus,
+            rtoOffices: newRtos
+          }, { merge: true });
+          await setDoc(doc(db, 'settings', 'general'), {
+            manufacturers: newManus,
+            rtoOffices: newRtos
+          }, { merge: true });
+        } catch (e) {
+          console.warn('Firestore settings update warning:', e);
+        }
       }
 
       setManufacturers(newManus);
@@ -131,6 +139,11 @@ const Settings = () => {
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>System Settings</h2>
         <p style={{ color: 'var(--text-secondary)' }}>Manage dynamic dropdown values used across the portal.</p>
+        {saveMessage && (
+          <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', backgroundColor: '#dcfce7', color: '#15803d', borderRadius: '0.5rem', fontWeight: 500 }}>
+            {saveMessage}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
@@ -144,6 +157,7 @@ const Settings = () => {
               type="text" 
               value={newManufacturer} 
               onChange={e => setNewManufacturer(e.target.value)} 
+              onKeyDown={e => { if (e.key === 'Enter') addManufacturer(); }}
               placeholder="Add new manufacturer..."
               style={{ flex: 1, padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
             />
@@ -192,6 +206,7 @@ const Settings = () => {
               type="text" 
               value={newRtoOffice} 
               onChange={e => setNewRtoOffice(e.target.value)} 
+              onKeyDown={e => { if (e.key === 'Enter') addRtoOffice(); }}
               placeholder="Add new RTO office..."
               style={{ flex: 1, padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
             />
