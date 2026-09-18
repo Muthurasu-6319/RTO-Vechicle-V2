@@ -294,6 +294,8 @@ const ApprovedApplications = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Validity</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO Office</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Date Issued</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Status</th>
@@ -315,6 +317,8 @@ const ApprovedApplications = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{getMobileNumber(app)}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.imei || '—'}</td>
+                    <td style={{ padding: '1rem 0.5rem' }}>{app.validity || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{app.rtoOffice}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.certifiedAt ? new Date(app.certifiedAt).toLocaleDateString() : 'N/A'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>
