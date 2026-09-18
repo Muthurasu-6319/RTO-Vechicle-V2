@@ -62,24 +62,66 @@ const Orders = () => {
     return normalized;
   };
 
+  const computeStockMap = (purchases: any[], ordersList: any[]) => {
+    const map: Record<string, { manufacturer: string; totalPurchased: number; totalAllocated: number; currentStock: number }> = {};
+
+    purchases.forEach(p => {
+      const rawMfg = p.manufacturer ? String(p.manufacturer).trim() : '';
+      if (!rawMfg) return;
+      const key = rawMfg.toUpperCase();
+      const qty = Number(p.quantity) || 0;
+      if (!map[key]) {
+        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      }
+      map[key].totalPurchased += qty;
+    });
+
+    ordersList.forEach(o => {
+      const rawMfg = o.item || o.manufacturer ? String(o.item || o.manufacturer).trim() : '';
+      if (!rawMfg) return;
+      const key = rawMfg.toUpperCase();
+      const qty = Number(o.quantity) || 0;
+      if (!map[key]) {
+        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      }
+      map[key].totalAllocated += qty;
+    });
+
+    for (const key in map) {
+      map[key].currentStock = map[key].totalPurchased - map[key].totalAllocated;
+    }
+    return map;
+  };
+
   const fetchData = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
+    let purchases: any[] = [];
+    let ordersList: any[] = [];
     try {
-      const [ordersRes, usersRes, settingsRes, statsRes] = await Promise.all([
+      const [ordersRes, usersRes, settingsRes, statsRes, entriesRes] = await Promise.all([
         fetch(`${backendUrl}/api/orders`),
         fetch(`${backendUrl}/api/users`),
         fetch(`${backendUrl}/api/settings`),
-        fetch(`${backendUrl}/api/stats/manufacturer-stock`)
+        fetch(`${backendUrl}/api/stats/manufacturer-stock`),
+        fetch(`${backendUrl}/api/purchase-entries`)
       ]);
       
       if (ordersRes.ok && usersRes.ok) {
         const ordersData = await ordersRes.json();
         const usersData = await usersRes.json();
         if (Array.isArray(ordersData) && Array.isArray(usersData)) {
+          ordersList = ordersData;
           setOrders(processAndSyncOrders(ordersData));
           setUsers(usersData.filter((u: any) => u.role !== 'admin'));
           fetchedFromBackend = true;
+        }
+      }
+
+      if (entriesRes.ok) {
+        const entriesData = await entriesRes.json();
+        if (Array.isArray(entriesData)) {
+          purchases = entriesData;
         }
       }
       
@@ -90,7 +132,13 @@ const Orders = () => {
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setStockMap(statsData);
+        if (Object.keys(statsData).length > 0) {
+          setStockMap(statsData);
+        } else {
+          setStockMap(computeStockMap(purchases, ordersList));
+        }
+      } else {
+        setStockMap(computeStockMap(purchases, ordersList));
       }
     } catch (err) {
       console.warn('Backend orders fetch failed, using Firestore Web SDK fallback');
@@ -98,14 +146,18 @@ const Orders = () => {
 
     if (!fetchedFromBackend && db) {
       try {
-        const [ordersSnap, usersSnap, settingsDoc] = await Promise.all([
+        const [ordersSnap, usersSnap, settingsDoc, entriesSnap] = await Promise.all([
           getDocs(collection(db, 'orders')),
           getDocs(collection(db, 'users')),
-          getDoc(doc(db, 'settings', 'config'))
+          getDoc(doc(db, 'settings', 'config')),
+          getDocs(collection(db, 'purchaseEntries'))
         ]);
 
         const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setOrders(processAndSyncOrders(allOrders));
+
+        const allEntries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStockMap(computeStockMap(allEntries, allOrders));
 
         const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
@@ -299,7 +351,7 @@ const Orders = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px', flexShrink: 0 }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
               type="text" placeholder="Search Order ID, User..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
@@ -307,20 +359,60 @@ const Orders = () => {
             />
           </div>
 
-          <button 
-            onClick={downloadCSV}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <Download size={18} /> Download Report
-          </button>
-          
-          <button 
-            onClick={openCreateModal}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <PlusCircle size={18} /> Create Order
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+            <button 
+              onClick={downloadCSV}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <Download size={18} /> Download Report
+            </button>
+            
+            <button 
+              onClick={openCreateModal}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <PlusCircle size={18} /> Create Order
+            </button>
+          </div>
         </div>
+      </div>
+
+      {/* Manufacturer Stock Overview Section */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>Stock Overview</h3>
+        {Object.keys(stockMap).length === 0 ? (
+          <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', borderRadius: '1rem' }}>
+            No stock data available yet.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+            {Object.keys(stockMap).map(mfgKey => {
+              const item = stockMap[mfgKey];
+              const mfgName = (typeof item === 'object' && item.manufacturer) ? item.manufacturer : mfgKey;
+              const currentStock = typeof item === 'number' ? item : (item.currentStock ?? 0);
+              const totalPurchased = typeof item === 'object' ? (item.totalPurchased ?? 0) : 0;
+              const totalAllocated = typeof item === 'object' ? (item.totalAllocated ?? 0) : 0;
+              return (
+                <div key={mfgKey} className="glass-panel" style={{ padding: '1.25rem 1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ padding: '0.875rem', backgroundColor: '#e0e7ff', color: '#4f46e5', borderRadius: '0.75rem', flexShrink: 0 }}>
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>{mfgName}</h4>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      {currentStock}
+                      {(totalPurchased > 0 || totalAllocated > 0) && (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#64748b', marginLeft: '0.5rem' }}>
+                          (In: {totalPurchased} | Used: {totalAllocated})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>

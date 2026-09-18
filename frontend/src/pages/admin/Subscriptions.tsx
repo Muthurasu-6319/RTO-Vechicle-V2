@@ -241,7 +241,7 @@ const Subscriptions = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px', flexShrink: 0 }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
               type="text" placeholder="Search Consumer, User..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
@@ -249,19 +249,21 @@ const Subscriptions = () => {
             />
           </div>
 
-          <button 
-            onClick={downloadCSV}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <Download size={18} /> Download Report
-          </button>
-          
-          <button 
-            onClick={openCreateModal}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <PlusCircle size={18} /> Create Subscription
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+            <button 
+              onClick={downloadCSV}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <Download size={18} /> Download Report
+            </button>
+            
+            <button 
+              onClick={openCreateModal}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <PlusCircle size={18} /> Create Subscription
+            </button>
+          </div>
         </div>
       </div>
 

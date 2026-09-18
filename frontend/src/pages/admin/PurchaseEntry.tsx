@@ -32,22 +32,63 @@ const PurchaseEntry = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
+  const computeStockMap = (purchases: any[], ordersList: any[]) => {
+    const map: Record<string, { manufacturer: string; totalPurchased: number; totalAllocated: number; currentStock: number }> = {};
+
+    purchases.forEach(p => {
+      const rawMfg = p.manufacturer ? String(p.manufacturer).trim() : '';
+      if (!rawMfg) return;
+      const key = rawMfg.toUpperCase();
+      const qty = Number(p.quantity) || 0;
+      if (!map[key]) {
+        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      }
+      map[key].totalPurchased += qty;
+    });
+
+    ordersList.forEach(o => {
+      const rawMfg = o.item || o.manufacturer ? String(o.item || o.manufacturer).trim() : '';
+      if (!rawMfg) return;
+      const key = rawMfg.toUpperCase();
+      const qty = Number(o.quantity) || 0;
+      if (!map[key]) {
+        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      }
+      map[key].totalAllocated += qty;
+    });
+
+    for (const key in map) {
+      map[key].currentStock = map[key].totalPurchased - map[key].totalAllocated;
+    }
+    return map;
+  };
+
   const fetchData = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
+    let purchases: any[] = [];
+    let ordersList: any[] = [];
     try {
-      const [entriesRes, settingsRes, statsRes, usersRes] = await Promise.all([
+      const [entriesRes, settingsRes, statsRes, usersRes, ordersRes] = await Promise.all([
         fetch(`${backendUrl}/api/purchase-entries`),
         fetch(`${backendUrl}/api/settings`),
         fetch(`${backendUrl}/api/stats/manufacturer-stock`),
-        fetch(`${backendUrl}/api/users`)
+        fetch(`${backendUrl}/api/users`),
+        fetch(`${backendUrl}/api/orders`)
       ]);
       
       if (entriesRes.ok) {
         const data = await entriesRes.json();
         if (Array.isArray(data)) {
+          purchases = data;
           setEntries(data);
           fetchedFromBackend = true;
+        }
+      }
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json();
+        if (Array.isArray(ordersData)) {
+          ordersList = ordersData;
         }
       }
       if (settingsRes.ok) {
@@ -55,7 +96,14 @@ const PurchaseEntry = () => {
         setManufacturers(settingsData.manufacturers || []);
       }
       if (statsRes.ok) {
-        setStockStats(await statsRes.json());
+        const statsData = await statsRes.json();
+        if (Object.keys(statsData).length > 0) {
+          setStockStats(statsData);
+        } else {
+          setStockStats(computeStockMap(purchases, ordersList));
+        }
+      } else {
+        setStockStats(computeStockMap(purchases, ordersList));
       }
       if (usersRes.ok) {
         const usersData = await usersRes.json();
@@ -69,14 +117,18 @@ const PurchaseEntry = () => {
 
     if (!fetchedFromBackend && db) {
       try {
-        const [entriesSnap, settingsDoc, usersSnap] = await Promise.all([
+        const [entriesSnap, settingsDoc, usersSnap, ordersSnap] = await Promise.all([
           getDocs(collection(db, 'purchaseEntries')),
           getDoc(doc(db, 'settings', 'config')),
-          getDocs(collection(db, 'users'))
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'orders'))
         ]);
         const allEntries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         allEntries.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setEntries(allEntries);
+
+        const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStockStats(computeStockMap(allEntries, allOrders));
 
         if (settingsDoc.exists()) {
           setManufacturers(settingsDoc.data()?.manufacturers || []);
@@ -257,8 +309,8 @@ const PurchaseEntry = () => {
           <p style={{ color: 'var(--text-secondary)' }}>Track incoming stock and download reports.</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px', flexShrink: 0 }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
               type="text" placeholder="Search Invoice, Manufacturer..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
@@ -266,19 +318,21 @@ const PurchaseEntry = () => {
             />
           </div>
           
-          <button 
-            onClick={downloadCSV}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <Download size={18} /> Download Report
-          </button>
-          
-          <button 
-            onClick={openCreateModal}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <PlusCircle size={18} /> New Entry
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+            <button 
+              onClick={downloadCSV}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <Download size={18} /> Download Report
+            </button>
+            
+            <button 
+              onClick={openCreateModal}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <PlusCircle size={18} /> New Entry
+            </button>
+          </div>
         </div>
       </div>
 
@@ -290,20 +344,32 @@ const PurchaseEntry = () => {
             No stock data available yet.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
-            {Object.keys(stockStats).map(mfg => (
-              <div key={mfg} className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ padding: '1rem', backgroundColor: '#e0e7ff', color: '#4f46e5', borderRadius: '0.75rem' }}>
-                  <Package size={24} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+            {Object.keys(stockStats).map(mfgKey => {
+              const item = stockStats[mfgKey];
+              const mfgName = (typeof item === 'object' && item.manufacturer) ? item.manufacturer : mfgKey;
+              const currentStock = typeof item === 'number' ? item : (item.currentStock ?? 0);
+              const totalPurchased = typeof item === 'object' ? (item.totalPurchased ?? 0) : 0;
+              const totalAllocated = typeof item === 'object' ? (item.totalAllocated ?? 0) : 0;
+              return (
+                <div key={mfgKey} className="glass-panel" style={{ padding: '1.25rem 1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ padding: '0.875rem', backgroundColor: '#e0e7ff', color: '#4f46e5', borderRadius: '0.75rem', flexShrink: 0 }}>
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>{mfgName}</h4>
+                    <p style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      {currentStock}
+                      {(totalPurchased > 0 || totalAllocated > 0) && (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#64748b', marginLeft: '0.5rem' }}>
+                          (In: {totalPurchased} | Used: {totalAllocated})
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>{mfg}</h4>
-                  <p style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {stockStats[mfg].currentStock}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
