@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, PlusCircle, Calendar, Hash, FileText, Trash2, Edit, CheckCircle, Package, CreditCard, UserPlus, Users, ArrowRight, Search, Download } from 'lucide-react';
 import SearchableUserSelect from '../../components/SearchableUserSelect';
+import SearchableManufacturerSelect from '../../components/SearchableManufacturerSelect';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, deleteDoc } from 'firebase/firestore';
+
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const PurchaseEntry = () => {
   const [entries, setEntries] = useState<any[]>([]);
@@ -23,7 +32,7 @@ const PurchaseEntry = () => {
     subQty: ''
   });
   const [formData, setFormData] = useState({
-    date: '',
+    date: getTodayDate(),
     manufacturer: '',
     quantity: '',
     invoiceNo: '',
@@ -146,7 +155,7 @@ const PurchaseEntry = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ date: '', manufacturer: '', quantity: '', invoiceNo: '', remarks: '' });
+    setFormData({ date: getTodayDate(), manufacturer: '', quantity: '', invoiceNo: '', remarks: '' });
   };
 
   const openCreateModal = () => {
@@ -487,15 +496,13 @@ const PurchaseEntry = () => {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
-                <select 
-                  name="manufacturer" value={formData.manufacturer} onChange={handleChange} required 
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                >
-                  <option value="">-- Choose Manufacturer --</option>
-                  {manufacturers.map((m, idx) => (
-                    <option key={idx} value={m}>{m}</option>
-                  ))}
-                </select>
+                <SearchableManufacturerSelect
+                  manufacturers={manufacturers}
+                  value={formData.manufacturer}
+                  onChange={(val) => setFormData(prev => ({ ...prev, manufacturer: val }))}
+                  placeholder="-- Choose Manufacturer --"
+                  required
+                />
               </div>
               
               <div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, PlusCircle, CheckCircle, Clock, Truck, User, Search, MapPin, Calendar, Hash, ShieldCheck, AlertCircle, Edit, Edit3, Trash2, Download } from 'lucide-react';
 import SearchableUserSelect from '../../components/SearchableUserSelect';
+import SearchableManufacturerSelect from '../../components/SearchableManufacturerSelect';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
@@ -562,15 +563,13 @@ const Orders = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
-                  <select 
-                    name="item" value={formData.item} onChange={handleChange} required 
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                  >
-                    <option value="">-- Choose Manufacturer --</option>
-                    {manufacturers.map((m, idx) => (
-                      <option key={idx} value={m}>{m}</option>
-                    ))}
-                  </select>
+                  <SearchableManufacturerSelect
+                    manufacturers={manufacturers}
+                    value={formData.item}
+                    onChange={(val) => setFormData(prev => ({ ...prev, item: val }))}
+                    placeholder="-- Choose Manufacturer --"
+                    required
+                  />
                   {formData.item && (() => {
                     const mKey = formData.item.replace(/\s+/g, '').toUpperCase();
                     const availStock = stockMap[mKey]?.currentStock || 0;

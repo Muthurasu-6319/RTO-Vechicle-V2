@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Search, Edit3, Trash2, Users } from 'lucide-react';
+import SearchableManufacturerSelect from '../../components/SearchableManufacturerSelect';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
@@ -317,12 +318,13 @@ const AdminManagement = () => {
               {formData.role === 'standard' && (
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Manufacturer Access</label>
-                  <select name="manufacturer" value={formData.manufacturer} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-                    <option value="">Select Manufacturer</option>
-                    {manufacturers.map((manu, i) => (
-                      <option key={i} value={manu}>{manu}</option>
-                    ))}
-                  </select>
+                  <SearchableManufacturerSelect
+                    manufacturers={manufacturers}
+                    value={formData.manufacturer}
+                    onChange={(val) => setFormData(prev => ({ ...prev, manufacturer: val }))}
+                    placeholder="Select Manufacturer"
+                    required={formData.role === 'standard'}
+                  />
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Standard admins will only see data for this manufacturer.</span>
                 </div>
               )}
