@@ -242,18 +242,16 @@ const PurchaseEntry = () => {
           batch: selectedPurchaseEntry.invoiceNo || '',
           orderId: `ORD-${Date.now()}`
         };
-        try {
-          const res = await fetch(`${backendUrl}/api/orders`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(orderData)
-          });
-          if (!res.ok && db) {
+        if (db) {
+          try {
             await addDoc(collection(db, 'orders'), { ...orderData, createdAt: new Date().toISOString() });
-          }
-        } catch (oErr) {
-          if (db) {
-            await addDoc(collection(db, 'orders'), { ...orderData, createdAt: new Date().toISOString() });
+          } catch (oErr) {
+            console.warn("Firestore order add failed, trying backend API:", oErr);
+            await fetch(`${backendUrl}/api/orders`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(orderData)
+            }).catch(e => console.error("Backend order add failed:", e));
           }
         }
       }

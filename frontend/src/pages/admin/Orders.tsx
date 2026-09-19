@@ -258,38 +258,8 @@ const Orders = () => {
     let saved = false;
     let errorMsg = '';
 
-    try {
-      if (editingOrder) {
-        const res = await fetch(`${backendUrl}/api/orders/${editingOrder.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData)
-        });
-        if (res.ok) {
-          saved = true;
-        } else {
-          const errJson = await res.json().catch(() => ({}));
-          errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
-        }
-      } else {
-        const res = await fetch(`${backendUrl}/api/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData)
-        });
-        if (res.ok) {
-          saved = true;
-        } else {
-          const errJson = await res.json().catch(() => ({}));
-          errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
-        }
-      }
-    } catch (err: any) {
-      console.warn('Backend save order failed, attempting Firestore Web SDK fallback:', err);
-      errorMsg = err?.message || 'Network error';
-    }
-
-    if (!saved && db) {
+    // Primary: Save directly via Firestore Web SDK (Single-Shot, Instant)
+    if (db) {
       try {
         if (editingOrder && editingOrder.id) {
           await updateDoc(doc(db, 'orders', editingOrder.id), {
@@ -312,14 +282,36 @@ const Orders = () => {
                 createdAt: new Date().toISOString()
               });
             } catch (nErr) {
-              console.warn('Notification creation fallback failed:', nErr);
+              console.warn('Notification creation failed:', nErr);
             }
           }
         }
         saved = true;
       } catch (fErr: any) {
-        console.error('Firestore save order fallback failed:', fErr);
-        errorMsg = fErr?.message || errorMsg;
+        console.warn('Firestore save order failed, trying backend API:', fErr);
+        errorMsg = fErr?.message || '';
+      }
+    }
+
+    // Secondary fallback: Express backend API ONLY if Firestore Web SDK failed
+    if (!saved) {
+      try {
+        const url = editingOrder ? `${backendUrl}/api/orders/${editingOrder.id}` : `${backendUrl}/api/orders`;
+        const method = editingOrder ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData)
+        });
+        if (res.ok) {
+          saved = true;
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
+        }
+      } catch (err: any) {
+        console.error('Backend save order fallback failed:', err);
+        errorMsg = err?.message || errorMsg || 'Network error';
       }
     }
 
@@ -340,33 +332,38 @@ const Orders = () => {
       return;
     }
 
+    setSubmitting(true);
     let deleted = false;
     let errorMsg = '';
 
-    try {
-      const res = await fetch(`${backendUrl}/api/orders/${order.id}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        deleted = true;
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
-      }
-    } catch (err: any) {
-      console.warn('Backend delete order failed, attempting Firestore Web SDK fallback:', err);
-      errorMsg = err?.message || 'Network error';
-    }
-
-    if (!deleted && db && order.id) {
+    if (db && order.id) {
       try {
         await deleteDoc(doc(db, 'orders', order.id));
         deleted = true;
       } catch (fErr: any) {
-        console.error('Firestore delete order fallback failed:', fErr);
-        errorMsg = fErr?.message || errorMsg;
+        console.warn('Firestore delete order failed, trying backend API:', fErr);
+        errorMsg = fErr?.message || '';
       }
     }
+
+    if (!deleted) {
+      try {
+        const res = await fetch(`${backendUrl}/api/orders/${order.id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          deleted = true;
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
+        }
+      } catch (err: any) {
+        console.error('Backend delete order fallback failed:', err);
+        errorMsg = err?.message || errorMsg || 'Network error';
+      }
+    }
+
+    setSubmitting(false);
 
     if (deleted) {
       alert('Order deleted successfully!');
