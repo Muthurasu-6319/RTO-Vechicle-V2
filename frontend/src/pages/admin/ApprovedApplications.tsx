@@ -33,7 +33,10 @@ const ApprovedApplications = () => {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
-            const filtered = data.filter((app: any) => app.status === 'Certified');
+            const filtered = data.filter((app: any) => 
+              app.status === 'Certified' &&
+              (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
+            );
             setApplications(filtered);
             fetchedFromBackend = true;
           }
@@ -50,14 +53,15 @@ const ApprovedApplications = () => {
 
       if (!fetchedFromBackend && db) {
         try {
-          const adminManufacturer = localStorage.getItem('adminManufacturer');
+          const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
           const [appsSnap, usersSnap] = await Promise.all([
             getDocs(collection(db, 'applications')),
             getDocs(collection(db, 'users'))
           ]);
           const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
           const certifiedApps = allApps.filter((app: any) => 
-            app.status === 'Certified' && (!adminManufacturer || app.manufacturer === adminManufacturer)
+            app.status === 'Certified' &&
+            (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
           );
           certifiedApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
           setApplications(certifiedApps);

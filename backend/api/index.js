@@ -466,6 +466,7 @@ app.delete('/api/users/:uid', async (req, res) => {
 // Admin Route: Get Stats
 app.get('/api/stats/admin', async (req, res) => {
   try {
+    const { manufacturer } = req.query;
     const appsSnapshot = await db.collection('applications').get();
     let totalApps = 0;
     let pendingApps = 0;
@@ -474,6 +475,9 @@ app.get('/api/stats/admin', async (req, res) => {
 
     appsSnapshot.forEach(doc => {
       const data = doc.data();
+      if (manufacturer && (data.manufacturer || '').trim().toLowerCase() !== manufacturer.trim().toLowerCase()) {
+        return; // Skip apps not belonging to standard admin's manufacturer
+      }
       totalApps++;
       const st = data.status || 'Pending';
       if (st === 'Pending') pendingApps++;
@@ -578,24 +582,18 @@ app.post('/api/applications', async (req, res) => {
 app.get('/api/applications', async (req, res) => {
   try {
     const { manufacturer, userId } = req.query;
-    let applicationsRef = db.collection('applications');
-    let query = applicationsRef;
-
-    if (manufacturer) {
-      query = query.where('manufacturer', '==', manufacturer);
-    }
-    if (userId) {
-      query = query.where('userId', '==', userId);
-    }
-    
-    // Add a limit to prevent fetching massive amounts of data
-    query = query.limit(100);
-
-    const snapshot = await query.get();
+    const snapshot = await db.collection('applications').get();
     let applications = [];
     
     snapshot.forEach(doc => {
-      applications.push({ id: doc.id, ...doc.data() });
+      const data = doc.data();
+      if (manufacturer && (data.manufacturer || '').trim().toLowerCase() !== manufacturer.trim().toLowerCase()) {
+        return;
+      }
+      if (userId && data.userId !== userId) {
+        return;
+      }
+      applications.push({ id: doc.id, ...data });
     });
     
     // Sort in memory to avoid composite index requirement
@@ -959,6 +957,19 @@ app.get('/api/orders/user/:uid', requireDb, async (req, res) => {
     snapshot.forEach(doc => {
       orders.push({ id: doc.id, ...doc.data() });
     });
+
+    if (orders.length === 0) {
+      const userDoc = await db.collection('users').doc(uid).get();
+      if (userDoc.exists && userDoc.data().email) {
+        const emailSnap = await db.collection('orders').where('userEmail', '==', userDoc.data().email).get();
+        emailSnap.forEach(doc => {
+          if (!orders.some(o => o.id === doc.id)) {
+            orders.push({ id: doc.id, ...doc.data() });
+          }
+        });
+      }
+    }
+
     // Sort by createdAt descending in memory (avoids composite index requirement)
     orders.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     res.json(orders);
@@ -972,36 +983,45 @@ app.get('/api/orders/user/:uid', requireDb, async (req, res) => {
 app.get('/api/users/:uid/quota', async (req, res) => {
   try {
     const { uid } = req.params;
+    let userEmail = '';
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (userDoc.exists && userDoc.data().email) {
+      userEmail = userDoc.data().email;
+    }
 
     // 1-Year Quota from Orders
-    const ordersSnapshot = await db.collection('orders').where('userId', '==', uid).get();
+    const ordersSnapshot = await db.collection('orders').get();
     let totalQuota1Year = 0;
     ordersSnapshot.forEach(doc => {
-      totalQuota1Year += Number(doc.data().quantity || 0);
+      const d = doc.data();
+      if (d.userId === uid || (userEmail && d.userEmail === userEmail)) {
+        totalQuota1Year += Number(d.quantity || 0);
+      }
     });
 
     // 2-Year Quota from Subscriptions
-    const subsSnapshot = await db.collection('subscriptions').where('userId', '==', uid).get();
+    const subsSnapshot = await db.collection('subscriptions').get();
     let totalQuota2Year = 0;
     subsSnapshot.forEach(doc => {
-      totalQuota2Year += Number(doc.data().subscriptionCount || 0);
+      const d = doc.data();
+      if (d.userId === uid || (userEmail && d.userEmail === userEmail)) {
+        totalQuota2Year += Number(d.subscriptionCount || 0);
+      }
     });
 
     // Used 1-Year (applications with validity '1 Year')
     let used1Year = 0;
-    try {
-      const apps1 = await db.collection('applications').where('userId', '==', uid).get();
-      apps1.forEach(doc => {
-        if (doc.data().validity === '1 Year') used1Year++;
-      });
-    } catch (e) { /* ignore index errors */ }
-
     // Used 2-Year (applications with validity '2 Years')
     let used2Year = 0;
     try {
-      const apps2 = await db.collection('applications').where('userId', '==', uid).get();
-      apps2.forEach(doc => {
-        if (doc.data().validity === '2 Years') used2Year++;
+      const appsSnap = await db.collection('applications').where('userId', '==', uid).get();
+      appsSnap.forEach(doc => {
+        const val = doc.data().validity;
+        if (val === '2 Years') {
+          used2Year++;
+        } else {
+          used1Year++;
+        }
       });
     } catch (e) { /* ignore index errors */ }
 
@@ -1095,6 +1115,19 @@ app.get('/api/subscriptions/user/:uid', async (req, res) => {
     snapshot.forEach(doc => {
       subs.push({ id: doc.id, ...doc.data() });
     });
+
+    if (subs.length === 0) {
+      const userDoc = await db.collection('users').doc(uid).get();
+      if (userDoc.exists && userDoc.data().email) {
+        const emailSnap = await db.collection('subscriptions').where('userEmail', '==', userDoc.data().email).get();
+        emailSnap.forEach(doc => {
+          if (!subs.some(s => s.id === doc.id)) {
+            subs.push({ id: doc.id, ...doc.data() });
+          }
+        });
+      }
+    }
+
     subs.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     res.json(subs);
   } catch (error) {

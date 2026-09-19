@@ -33,7 +33,8 @@ const Certificates = () => {
         const data = await res.json();
         if (Array.isArray(data)) {
           const filtered = data.filter((app: any) => 
-            ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+            ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
+            (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
           );
           setApplications(filtered);
           fetchedFromBackend = true;
@@ -51,7 +52,7 @@ const Certificates = () => {
 
     if (!fetchedFromBackend && db) {
       try {
-        const adminManufacturer = localStorage.getItem('adminManufacturer');
+        const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
         const [appsSnap, usersSnap] = await Promise.all([
           getDocs(collection(db, 'applications')),
           getDocs(collection(db, 'users'))
@@ -59,7 +60,7 @@ const Certificates = () => {
         const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const filteredApps = allApps.filter((app: any) => 
           ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
-          (!adminManufacturer || app.manufacturer === adminManufacturer)
+          (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
         );
         filteredApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setApplications(filteredApps);

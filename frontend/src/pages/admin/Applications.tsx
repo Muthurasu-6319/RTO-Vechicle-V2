@@ -32,7 +32,10 @@ const Applications = () => {
       if (appsRes.ok) {
         const data = await appsRes.json();
         if (Array.isArray(data)) {
-          const pendingApps = data.filter((app: any) => app.status === 'Pending');
+          const pendingApps = data.filter((app: any) => 
+            app.status === 'Pending' &&
+            (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
+          );
           setApplications(pendingApps);
           fetchedFromBackend = true;
         }
@@ -50,14 +53,15 @@ const Applications = () => {
     // Fallback: Fetch directly from client-side Firestore
     if (!fetchedFromBackend && db) {
       try {
+        const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
         const [appsSnap, usersSnap] = await Promise.all([
           getDocs(collection(db, 'applications')),
           getDocs(collection(db, 'users'))
         ]);
-        const adminManufacturer = localStorage.getItem('adminManufacturer');
         const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const pendingApps = allApps.filter((app: any) => 
-          app.status === 'Pending' && (!adminManufacturer || app.manufacturer === adminManufacturer)
+          app.status === 'Pending' &&
+          (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
         );
         pendingApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setApplications(pendingApps);

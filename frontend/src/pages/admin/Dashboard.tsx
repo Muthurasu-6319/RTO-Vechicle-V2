@@ -26,7 +26,9 @@ const Dashboard = () => {
       let fetchedFromBackend = false;
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        const url = `${backendUrl}/api/stats/admin`;
+        const url = adminManufacturer 
+          ? `${backendUrl}/api/stats/admin?manufacturer=${encodeURIComponent(adminManufacturer)}`
+          : `${backendUrl}/api/stats/admin`;
 
         const res = await fetch(url);
         if (res.ok) {
@@ -51,7 +53,12 @@ const Dashboard = () => {
             getDoc(doc(db, 'settings', 'dashboard'))
           ]);
 
-          const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          let allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          if (adminManufacturer) {
+            allApps = allApps.filter((app: any) => 
+              (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase()
+            );
+          }
 
           const pendingApps = allApps.filter((app: any) => (app.status || 'Pending') === 'Pending').length;
           const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
@@ -74,7 +81,7 @@ const Dashboard = () => {
       }
     };
     fetchStats();
-  }, []);
+  }, [adminManufacturer]);
 
   // Standard Admin View: 3 Cards Only (Applications, Certificates Issued, Installed)
   if (isStandard) {

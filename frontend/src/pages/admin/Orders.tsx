@@ -265,9 +265,11 @@ const Orders = () => {
       return;
     }
     
-    const user = users.find(u => u.id === formData.userId);
+    const user = users.find(u => u.id === formData.userId || u.uid === formData.userId);
+    const targetUserId = user ? (user.uid || user.id) : formData.userId;
     const orderData = {
       ...formData,
+      userId: targetUserId,
       quantity: requestedQty,
       userName: user ? (user.fullName || user.name) : 'Unknown User',
       userEmail: user ? user.email : ''

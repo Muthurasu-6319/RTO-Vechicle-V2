@@ -135,9 +135,11 @@ const Subscriptions = () => {
       return;
     }
     
-    const user = users.find(u => u.id === formData.userId);
+    const user = users.find(u => u.id === formData.userId || u.uid === formData.userId);
+    const targetUserId = user ? (user.uid || user.id) : formData.userId;
     const subData = {
       ...formData,
+      userId: targetUserId,
       subscriptionCount: Number(formData.subscriptionCount),
       userName: user ? (user.fullName || user.name) : 'Unknown User',
       userEmail: user ? user.email : ''

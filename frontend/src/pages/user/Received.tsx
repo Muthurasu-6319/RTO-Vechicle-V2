@@ -13,7 +13,7 @@ const Received = () => {
 
   // Compute total, used, and balance stock from RAM cache
   const totalStock = orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
-  const usedStock = applications.length;
+  const usedStock = applications.filter((app: any) => app.validity === '1 Year' || !app.validity).length;
   const balanceStock = totalStock - usedStock;
 
 
