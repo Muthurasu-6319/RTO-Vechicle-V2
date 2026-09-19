@@ -14,6 +14,21 @@ const AdminLogin = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
+  const setAdminSession = (token: string, role: string, manufacturer?: string) => {
+    sessionStorage.setItem('adminToken', token);
+    sessionStorage.setItem('adminRole', role);
+    localStorage.setItem('adminToken', token);
+    localStorage.setItem('adminRole', role);
+
+    if (manufacturer && !role.toLowerCase().includes('full')) {
+      sessionStorage.setItem('adminManufacturer', manufacturer);
+      localStorage.setItem('adminManufacturer', manufacturer);
+    } else {
+      sessionStorage.removeItem('adminManufacturer');
+      localStorage.removeItem('adminManufacturer');
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -24,9 +39,7 @@ const AdminLogin = () => {
 
     // 0. Instant Super Admin Check
     if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
-      localStorage.setItem('adminToken', 'mock-jwt-token-for-admin');
-      localStorage.setItem('adminRole', 'full admin');
-      localStorage.removeItem('adminManufacturer');
+      setAdminSession('mock-jwt-token-for-admin', 'full admin');
       navigate('/admin/dashboard');
       setIsLoading(false);
       return;
@@ -43,13 +56,7 @@ const AdminLogin = () => {
       if (res.ok) {
         const data = await res.json();
         const role = cleanEmail === 'admin@gmail.com' ? 'full admin' : (data.role || 'standard');
-        localStorage.setItem('adminToken', data.token);
-        localStorage.setItem('adminRole', role);
-        if (data.manufacturer && !role.toLowerCase().includes('full')) {
-          localStorage.setItem('adminManufacturer', data.manufacturer);
-        } else {
-          localStorage.removeItem('adminManufacturer');
-        }
+        setAdminSession(data.token, role, data.manufacturer);
         
         const isStandard = role.toLowerCase().includes('standard');
         if (isStandard) {
@@ -68,9 +75,7 @@ const AdminLogin = () => {
     if (db) {
       try {
         if (cleanEmail === 'standard@gmail.com' && cleanPassword === 'standard') {
-          localStorage.setItem('adminToken', 'mock-jwt-token-for-standard-admin');
-          localStorage.setItem('adminRole', 'standard');
-          localStorage.removeItem('adminManufacturer');
+          setAdminSession('mock-jwt-token-for-standard-admin', 'standard');
           navigate('/admin/applications');
           setIsLoading(false);
           return;
@@ -90,15 +95,10 @@ const AdminLogin = () => {
         });
 
         if (validAdmin) {
-          localStorage.setItem('adminToken', 'mock-jwt-token-for-admin-' + validAdmin.id);
-          localStorage.setItem('adminRole', validAdmin.role || 'standard');
-          if (validAdmin.manufacturer) {
-            localStorage.setItem('adminManufacturer', validAdmin.manufacturer);
-          } else {
-            localStorage.removeItem('adminManufacturer');
-          }
+          const role = cleanEmail === 'admin@gmail.com' ? 'full admin' : (validAdmin.role || 'standard');
+          setAdminSession('mock-jwt-token-for-admin-' + validAdmin.id, role, validAdmin.manufacturer);
 
-          const isStandard = validAdmin.role && validAdmin.role.toLowerCase().includes('standard');
+          const isStandard = role.toLowerCase().includes('standard');
           if (isStandard) {
             navigate('/admin/applications');
           } else {

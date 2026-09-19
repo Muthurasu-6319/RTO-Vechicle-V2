@@ -44,15 +44,18 @@ const AdminLayout = () => {
   }, [location.pathname]);
 
   const handleLogout = () => {
+    sessionStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminRole');
+    sessionStorage.removeItem('adminManufacturer');
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminRole');
     localStorage.removeItem('adminManufacturer');
     navigate('/admin');
   };
 
-  const adminRole = (localStorage.getItem('adminRole') || 'full admin').toLowerCase().trim();
-  const adminToken = localStorage.getItem('adminToken') || '';
-  const adminManufacturer = localStorage.getItem('adminManufacturer') || '';
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || 'full admin').toLowerCase().trim();
+  const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+  const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
 
   // Super Admin check: token matches super admin token or role contains 'full' or 'super' or not 'standard'
   const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
