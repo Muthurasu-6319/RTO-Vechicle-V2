@@ -14,6 +14,7 @@ const Orders = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     userId: '',
@@ -222,6 +223,8 @@ const Orders = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
     if (!formData.userId) {
       alert("Please select a User.");
       return;
@@ -251,6 +254,7 @@ const Orders = () => {
       userEmail: user ? user.email : ''
     };
 
+    setSubmitting(true);
     let saved = false;
     let errorMsg = '';
 
@@ -318,6 +322,8 @@ const Orders = () => {
         errorMsg = fErr?.message || errorMsg;
       }
     }
+
+    setSubmitting(false);
 
     if (saved) {
       alert(editingOrder ? 'Order updated successfully!' : 'Order created successfully!');
@@ -682,8 +688,17 @@ const Orders = () => {
               {/* Modal Footer */}
               <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem', flexShrink: 0, backgroundColor: '#f8fafc' }}>
                 <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.625rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '0.625rem', backgroundColor: editingOrder ? '#f59e0b' : '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem' }}>
-                  {editingOrder ? 'Update Order' : 'Save Order'}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    flex: 1, padding: '0.625rem',
+                    backgroundColor: submitting ? '#94a3b8' : (editingOrder ? '#f59e0b' : '#3b82f6'),
+                    border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500,
+                    cursor: submitting ? 'not-allowed' : 'pointer', fontSize: '0.875rem', opacity: submitting ? 0.7 : 1
+                  }}
+                >
+                  {submitting ? 'Saving...' : (editingOrder ? 'Update Order' : 'Save Order')}
                 </button>
               </div>
             </form>
