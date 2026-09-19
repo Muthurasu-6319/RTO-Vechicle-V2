@@ -281,57 +281,71 @@ const AdminManagement = () => {
       </div>
 
       {isModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="glass-panel" style={{ padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', backgroundColor: 'white' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>{editingAdmin ? 'Edit Admin' : 'Create Admin'}</h2>
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem'
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '1rem', width: '100%', maxWidth: '480px', maxHeight: '88vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+          }}>
+            {/* Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1e293b' }}>{editingAdmin ? 'Edit Admin' : 'Create Admin'}</h2>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>&times;</button>
+            </div>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Name</label>
-                <input type="text" name="name" value={formData.name} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} />
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', margin: 0 }}>
+              {/* Body */}
+              <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Mobile No</label>
-                  <input type="text" name="mobile" value={formData.mobile} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} />
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Name</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem' }} />
                 </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Mobile No</label>
+                    <input type="text" name="mobile" value={formData.mobile} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Email</label>
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem' }} />
+                  </div>
+                </div>
+                
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} />
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Password</label>
+                  <input type="text" name="password" value={formData.password} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem' }} />
                 </div>
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password</label>
-                <input type="text" name="password" value={formData.password} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} />
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Role</label>
+                  <select name="role" value={formData.role} onChange={handleChange} style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem' }}>
+                    <option value="standard">Standard Admin</option>
+                    <option value="full admin">Full Admin</option>
+                  </select>
+                </div>
+
+                {formData.role === 'standard' && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer Access</label>
+                    <SearchableManufacturerSelect
+                      manufacturers={manufacturers}
+                      value={formData.manufacturer}
+                      onChange={(val) => setFormData(prev => ({ ...prev, manufacturer: val }))}
+                      placeholder="Select Manufacturer"
+                      required={formData.role === 'standard'}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Standard admins will only see data for this manufacturer.</span>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Role</label>
-                <select name="role" value={formData.role} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-                  <option value="standard">Standard Admin</option>
-                  <option value="full admin">Full Admin</option>
-                </select>
-              </div>
-
-              {formData.role === 'standard' && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Manufacturer Access</label>
-                  <SearchableManufacturerSelect
-                    manufacturers={manufacturers}
-                    value={formData.manufacturer}
-                    onChange={(val) => setFormData(prev => ({ ...prev, manufacturer: val }))}
-                    placeholder="Select Manufacturer"
-                    required={formData.role === 'standard'}
-                  />
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Standard admins will only see data for this manufacturer.</span>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={closeModal} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>{editingAdmin ? 'Update' : 'Create'}</button>
+              {/* Footer */}
+              <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                <button type="button" onClick={closeModal} style={{ flex: 1, padding: '0.625rem', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '0.625rem', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>{editingAdmin ? 'Update' : 'Create'}</button>
               </div>
             </form>
           </div>

@@ -378,17 +378,23 @@ const Subscriptions = () => {
       {isModalOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem'
+          backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem'
         }}>
-          <div className="glass-panel" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b' }}>{editingSub ? 'Edit Subscription' : 'Create Subscription'}</h3>
-              <button onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '1rem', width: '100%', maxWidth: '520px', maxHeight: '88vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+          }}>
+            {/* Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b', margin: 0 }}>{editingSub ? 'Edit Subscription' : 'Create Subscription'}</h3>
+              <button onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', margin: 0 }}>
+              {/* Body */}
+              <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
                   <SearchableUserSelect
                     users={users}
                     value={formData.userId}
@@ -397,42 +403,42 @@ const Subscriptions = () => {
                   />
                 </div>
 
-
-
                 <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Consumer Name</label>
-                <input type="text" name="consumerName" value={formData.consumerName} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Subscription Count (Quota)</label>
-                  <input type="number" min="1" name="subscriptionCount" value={formData.subscriptionCount} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Consumer Name</label>
+                  <input type="text" name="consumerName" value={formData.consumerName} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Subscription Count (Quota)</label>
+                    <input type="number" min="1" name="subscriptionCount" value={formData.subscriptionCount} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Date</label>
+                    <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
+                  </div>
+                </div>
+
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Date</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Invoice PDF</label>
+                  <UploadButton onUploadSuccess={handleInvoiceUpload} />
+                  {formData.invoicePdfUrl && (
+                    <p style={{ color: '#10b981', fontSize: '0.8rem', marginTop: '0.5rem' }}>✓ Invoice uploaded</p>
+                  )}
+                </div>
+
+                <div style={{ padding: '0.75rem 1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}>
+                    <input type="checkbox" name="approved" checked={formData.approved} onChange={handleChange} style={{ width: '16px', height: '16px' }} />
+                    Approved
+                  </label>
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Invoice PDF</label>
-                <UploadButton onUploadSuccess={handleInvoiceUpload} />
-                {formData.invoicePdfUrl && (
-                  <p style={{ color: '#10b981', fontSize: '0.8rem', marginTop: '0.5rem' }}>✓ Invoice uploaded</p>
-                )}
-              </div>
-
-              <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}>
-                  <input type="checkbox" name="approved" checked={formData.approved} onChange={handleChange} style={{ width: '16px', height: '16px' }} />
-                  Approved
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.75rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: editingSub ? '#f59e0b' : '#8b5cf6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
+              {/* Footer */}
+              <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.625rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '0.625rem', backgroundColor: editingSub ? '#f59e0b' : '#8b5cf6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem' }}>
                   {editingSub ? 'Update' : 'Create Subscription'}
                 </button>
               </div>

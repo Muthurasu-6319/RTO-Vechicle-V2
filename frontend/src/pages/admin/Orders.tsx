@@ -529,90 +529,98 @@ const Orders = () => {
       {isModalOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem'
+          backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem'
         }}>
-          <div className="glass-panel" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b' }}>{editingOrder ? 'Edit Order' : 'Create New Order'}</h3>
-              <button onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '1rem', width: '100%', maxWidth: '540px', maxHeight: '88vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b', margin: 0 }}>{editingOrder ? 'Edit Order' : 'Create New Order'}</h3>
+              <button onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
-                <SearchableUserSelect
-                  users={users}
-                  value={formData.userId}
-                  onChange={(userId) => setFormData(prev => ({ ...prev, userId }))}
-                  required
-                />
-                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Quantity in this order sets the stock quota for the user.</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', margin: 0 }}>
+              {/* Modal Body */}
+              <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Order ID</label>
-                  <input type="text" name="orderId" value={formData.orderId} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Ordered Date</label>
-                  <input type="date" name="orderedDate" value={formData.orderedDate} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
-                  <SearchableManufacturerSelect
-                    manufacturers={manufacturers}
-                    value={formData.item}
-                    onChange={(val) => setFormData(prev => ({ ...prev, item: val }))}
-                    placeholder="-- Choose Manufacturer --"
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Select User</label>
+                  <SearchableUserSelect
+                    users={users}
+                    value={formData.userId}
+                    onChange={(userId) => setFormData(prev => ({ ...prev, userId }))}
                     required
                   />
-                  {formData.item && (() => {
-                    const mKey = formData.item.replace(/\s+/g, '').toUpperCase();
-                    const availStock = stockMap[mKey]?.currentStock || 0;
-                    return (
-                      <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: availStock <= 0 ? '#ef4444' : '#10b981' }}>
-                        Available Stock: {availStock}
-                      </p>
-                    );
-                  })()}
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>Quantity in this order sets the stock quota for the user.</p>
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Order ID</label>
+                    <input type="text" name="orderId" value={formData.orderId} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Ordered Date</label>
+                    <input type="date" name="orderedDate" value={formData.orderedDate} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Manufacturer</label>
+                    <SearchableManufacturerSelect
+                      manufacturers={manufacturers}
+                      value={formData.item}
+                      onChange={(val) => setFormData(prev => ({ ...prev, item: val }))}
+                      placeholder="-- Manufacturer --"
+                      required
+                    />
+                    {formData.item && (() => {
+                      const mKey = formData.item.replace(/\s+/g, '').toUpperCase();
+                      const availStock = stockMap[mKey]?.currentStock || 0;
+                      return (
+                        <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: availStock <= 0 ? '#ef4444' : '#10b981' }}>
+                          Stock: {availStock}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Batch</label>
+                    <input type="text" name="batch" value={formData.batch} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Quantity</label>
+                    <input type="number" min="1" name="quantity" value={formData.quantity} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
+                  </div>
+                </div>
+
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Batch</label>
-                  <input type="text" name="batch" value={formData.batch} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Address</label>
+                  <textarea name="address" rows={2} value={formData.address} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', resize: 'none', fontSize: '0.875rem' }}></textarea>
                 </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Quantity (Quota)</label>
-                  <input type="number" min="1" name="quantity" value={formData.quantity} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+
+                <div style={{ display: 'flex', gap: '1rem', padding: '0.75rem 1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}>
+                    <input type="checkbox" name="managerApproval" checked={formData.managerApproval} onChange={handleChange} style={{ width: '15px', height: '15px' }} />
+                    Manager Approval
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}>
+                    <input type="checkbox" name="accountsApproval" checked={formData.accountsApproval} onChange={handleChange} style={{ width: '15px', height: '15px' }} />
+                    Accounts Approval
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}>
+                    <input type="checkbox" name="dispatched" checked={formData.dispatched} onChange={handleChange} style={{ width: '15px', height: '15px' }} />
+                    Dispatched
+                  </label>
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.875rem' }}>Address</label>
-                <textarea name="address" rows={3} value={formData.address} onChange={handleChange} required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', resize: 'none' }}></textarea>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}>
-                  <input type="checkbox" name="managerApproval" checked={formData.managerApproval} onChange={handleChange} style={{ width: '16px', height: '16px' }} />
-                  Manager Approval
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}>
-                  <input type="checkbox" name="accountsApproval" checked={formData.accountsApproval} onChange={handleChange} style={{ width: '16px', height: '16px' }} />
-                  Accounts Approval
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}>
-                  <input type="checkbox" name="dispatched" checked={formData.dispatched} onChange={handleChange} style={{ width: '16px', height: '16px' }} />
-                  Dispatched
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.75rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '0.75rem', backgroundColor: editingOrder ? '#f59e0b' : '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}>
+              {/* Modal Footer */}
+              <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} style={{ flex: 1, padding: '0.625rem', backgroundColor: 'white', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '0.625rem', backgroundColor: editingOrder ? '#f59e0b' : '#3b82f6', border: 'none', color: 'white', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem' }}>
                   {editingOrder ? 'Update Order' : 'Save Order'}
                 </button>
               </div>
