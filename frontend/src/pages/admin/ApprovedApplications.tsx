@@ -22,7 +22,7 @@ const ApprovedApplications = () => {
       setLoading(true);
       let fetchedFromBackend = false;
       try {
-        const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer');
+        const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
         const url = adminManufacturer 
           ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
           : `${backendUrl}/api/applications`;

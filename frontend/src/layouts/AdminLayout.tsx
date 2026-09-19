@@ -44,20 +44,32 @@ const AdminLayout = () => {
   }, [location.pathname]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('adminToken');
-    sessionStorage.removeItem('adminRole');
-    sessionStorage.removeItem('adminManufacturer');
+    sessionStorage.clear();
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminRole');
     localStorage.removeItem('adminManufacturer');
     navigate('/admin');
   };
 
-  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || 'full admin').toLowerCase().trim();
-  const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
-  const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
+  let token = sessionStorage.getItem('adminToken');
+  let role = sessionStorage.getItem('adminRole');
+  let manufacturer = sessionStorage.getItem('adminManufacturer');
 
-  // Super Admin check: token matches super admin token or role contains 'full' or 'super' or not 'standard'
+  // If sessionStorage is empty on new tab load, initialize once from localStorage
+  if (!token && localStorage.getItem('adminToken')) {
+    token = localStorage.getItem('adminToken') || '';
+    role = localStorage.getItem('adminRole') || '';
+    manufacturer = localStorage.getItem('adminManufacturer') || '';
+    if (token) sessionStorage.setItem('adminToken', token);
+    if (role) sessionStorage.setItem('adminRole', role);
+    if (manufacturer) sessionStorage.setItem('adminManufacturer', manufacturer);
+  }
+
+  const adminRole = (role || 'full admin').toLowerCase().trim();
+  const adminToken = token || '';
+  const adminManufacturer = manufacturer || '';
+
+  // Super Admin check: token matches super admin token or role contains 'full' or 'super'
   const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
   const isStandard = !isSuperAdmin && adminRole.includes('standard');
 
