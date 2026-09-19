@@ -45,7 +45,7 @@ const UserLayout = () => {
       {/* Mobile Topbar */}
       <div className="user-topbar-mobile">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <img src={logo} alt="Logo" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '50%' }} />
+          <img src={logo} alt="Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-color)', margin: 0 }}>V LINK PORTAL</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -66,7 +66,7 @@ const UserLayout = () => {
       <aside className={`user-sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img src={logo} alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '50%' }} />
+            <img src={logo} alt="Logo" style={{ width: '68px', height: '68px', objectFit: 'contain' }} />
             <div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-color)', margin: 0 }}>V LINK PORTAL</h1>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>Dealer Panel</p>
