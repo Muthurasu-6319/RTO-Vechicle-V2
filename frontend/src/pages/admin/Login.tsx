@@ -22,6 +22,16 @@ const AdminLogin = () => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanPassword = password.trim();
 
+    // 0. Instant Super Admin Check
+    if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
+      localStorage.setItem('adminToken', 'mock-jwt-token-for-admin');
+      localStorage.setItem('adminRole', 'full admin');
+      localStorage.removeItem('adminManufacturer');
+      navigate('/admin/dashboard');
+      setIsLoading(false);
+      return;
+    }
+
     // 1. Try Backend API first
     try {
       const res = await fetch(`${backendUrl}/api/auth/login`, {
@@ -32,15 +42,16 @@ const AdminLogin = () => {
 
       if (res.ok) {
         const data = await res.json();
+        const role = cleanEmail === 'admin@gmail.com' ? 'full admin' : (data.role || 'standard');
         localStorage.setItem('adminToken', data.token);
-        localStorage.setItem('adminRole', data.role);
-        if (data.manufacturer) {
+        localStorage.setItem('adminRole', role);
+        if (data.manufacturer && !role.toLowerCase().includes('full')) {
           localStorage.setItem('adminManufacturer', data.manufacturer);
         } else {
           localStorage.removeItem('adminManufacturer');
         }
         
-        const isStandard = data.role && data.role.toLowerCase().includes('standard');
+        const isStandard = role.toLowerCase().includes('standard');
         if (isStandard) {
           navigate('/admin/applications');
         } else {
@@ -56,15 +67,6 @@ const AdminLogin = () => {
     // 2. Client-side Firestore Fallback
     if (db) {
       try {
-        if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
-          localStorage.setItem('adminToken', 'mock-jwt-token-for-admin');
-          localStorage.setItem('adminRole', 'full admin');
-          localStorage.removeItem('adminManufacturer');
-          navigate('/admin/dashboard');
-          setIsLoading(false);
-          return;
-        }
-
         if (cleanEmail === 'standard@gmail.com' && cleanPassword === 'standard') {
           localStorage.setItem('adminToken', 'mock-jwt-token-for-standard-admin');
           localStorage.setItem('adminRole', 'standard');

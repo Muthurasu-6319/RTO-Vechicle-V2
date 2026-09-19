@@ -50,7 +50,13 @@ const AdminLayout = () => {
     navigate('/admin');
   };
 
-  const adminRole = localStorage.getItem('adminRole') || 'standard';
+  const adminRole = (localStorage.getItem('adminRole') || 'full admin').toLowerCase().trim();
+  const adminToken = localStorage.getItem('adminToken') || '';
+  const adminManufacturer = localStorage.getItem('adminManufacturer') || '';
+
+  // Super Admin check: token matches super admin token or role contains 'full' or 'super' or not 'standard'
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+  const isStandard = !isSuperAdmin && adminRole.includes('standard');
 
   let navItems = [
     { name: 'Overview', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
@@ -65,7 +71,7 @@ const AdminLayout = () => {
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
   ];
 
-  if (adminRole === 'standard') {
+  if (isStandard) {
     navItems = navItems.filter(item => 
       ['Applications', 'Certificates', 'Approved'].includes(item.name)
     );
@@ -125,10 +131,10 @@ const AdminLayout = () => {
           <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <NotificationBell isAdmin={true} />
             <div className="admin-profile">
-              <div className="avatar">A</div>
+              <div className="avatar">{isStandard ? 'S' : 'A'}</div>
               <div className="admin-info">
-                <span className="admin-name">Admin User</span>
-                <span className="admin-role">Super Admin</span>
+                <span className="admin-name">{isStandard ? (adminManufacturer ? `${adminManufacturer} Admin` : 'Standard Admin') : 'Super Admin'}</span>
+                <span className="admin-role">{isStandard ? 'Standard Admin' : 'Super Admin'}</span>
               </div>
             </div>
           </div>
