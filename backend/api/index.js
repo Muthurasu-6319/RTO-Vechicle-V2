@@ -466,6 +466,37 @@ app.delete('/api/users/:uid', async (req, res) => {
 // Admin Route: Get Stats
 app.get('/api/stats/admin', async (req, res) => {
   try {
+    const { manufacturer } = req.query;
+
+    if (manufacturer) {
+      let appsQuery = db.collection('applications').where('manufacturer', '==', manufacturer);
+      const snapshot = await appsQuery.get();
+      let totalApps = 0;
+      let pendingApps = 0;
+      let certifiedApps = 0;
+      let installedApps = 0;
+
+      snapshot.forEach(doc => {
+        totalApps++;
+        const data = doc.data();
+        const st = data.status;
+        if (st === 'Pending') pendingApps++;
+        if (st === 'Certified' || st === 'RTOApproved' || st === 'TempCertUploaded') certifiedApps++;
+        if (st === 'Installed') installedApps++;
+      });
+
+      return res.json({
+        totalUsers: 0,
+        applications: totalApps,
+        pendingReview: pendingApps,
+        certificatesIssued: certifiedApps,
+        installed: installedApps,
+        totalOrders: 0,
+        deviceStock: 0,
+        subscriptions: 0
+      });
+    }
+
     const cachedStats = cache.get('admin_stats');
     if (cachedStats) {
       return res.json(cachedStats);
@@ -483,6 +514,9 @@ app.get('/api/stats/admin', async (req, res) => {
     const certifiedSnapshot = await db.collection('applications').where('status', '==', 'Certified').count().get();
     const certifiedApps = certifiedSnapshot.data().count;
 
+    const installedSnapshot = await db.collection('applications').where('status', '==', 'Installed').count().get();
+    const installedApps = installedSnapshot.data().count;
+
     const ordersSnapshot = await db.collection('orders').count().get();
     const totalOrders = ordersSnapshot.data().count;
 
@@ -495,6 +529,7 @@ app.get('/api/stats/admin', async (req, res) => {
       applications: totalApps,
       pendingReview: pendingApps,
       certificatesIssued: certifiedApps,
+      installed: installedApps,
       totalOrders: totalOrders,
       deviceStock: deviceStock,
       subscriptions: 0

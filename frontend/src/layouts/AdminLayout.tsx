@@ -97,7 +97,7 @@ const AdminLayout = () => {
 
   if (isStandard) {
     navItems = navItems.filter(item => 
-      ['Applications', 'Certificates', 'Approved'].includes(item.name)
+      ['Overview', 'Applications', 'Certificates', 'Approved'].includes(item.name)
     );
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileText, CheckCircle, Package, Activity, CreditCard, HardDrive } from 'lucide-react';
+import { Users, FileText, CheckCircle, Package, Activity, CreditCard, HardDrive, Wrench } from 'lucide-react';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
@@ -9,17 +9,28 @@ const Dashboard = () => {
     applications: 0,
     pendingReview: 0,
     certificatesIssued: 0,
+    installed: 0,
     totalOrders: 0,
     deviceStock: 0,
     subscriptions: 0
   });
+
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+  const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+  const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
 
   useEffect(() => {
     const fetchStats = async () => {
       let fetchedFromBackend = false;
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        const res = await fetch(`${backendUrl}/api/stats/admin`);
+        const url = isStandard && adminManufacturer 
+          ? `${backendUrl}/api/stats/admin?manufacturer=${encodeURIComponent(adminManufacturer)}`
+          : `${backendUrl}/api/stats/admin`;
+
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           if (data && !data.error) {
@@ -42,16 +53,25 @@ const Dashboard = () => {
             getDoc(doc(db, 'settings', 'dashboard'))
           ]);
 
-          const allApps = appsSnap.docs.map(d => d.data());
+          let allApps = appsSnap.docs.map(d => d.data());
+
+          if (isStandard && adminManufacturer) {
+            allApps = allApps.filter((app: any) => 
+              (app.manufacturer || app.vltdManufacturer || '').toLowerCase().trim() === adminManufacturer.toLowerCase().trim()
+            );
+          }
+
           const pendingApps = allApps.filter((app: any) => app.status === 'Pending').length;
-          const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
+          const certifiedApps = allApps.filter((app: any) => ['Certified', 'TempCertUploaded', 'RTOApproved'].includes(app.status)).length;
+          const installedApps = allApps.filter((app: any) => app.status === 'Installed').length;
           const deviceStock = stockDoc.exists() ? (stockDoc.data()?.deviceStock || 0) : 0;
 
           setStats({
             totalUsers: usersSnap.size,
-            applications: appsSnap.size,
+            applications: allApps.length,
             pendingReview: pendingApps,
             certificatesIssued: certifiedApps,
+            installed: installedApps,
             totalOrders: ordersSnap.size,
             deviceStock: deviceStock,
             subscriptions: subsSnap.size
@@ -62,9 +82,60 @@ const Dashboard = () => {
       }
     };
     fetchStats();
-  }, []);
+  }, [isStandard, adminManufacturer]);
 
+  // Standard Admin View: 3 Cards Only (Applications, Certificates Issued, Installed)
+  if (isStandard) {
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Overview Dashboard</h1>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              Welcome back{adminManufacturer ? `, ${adminManufacturer} Admin` : ''}. Here is your application overview.
+            </p>
+          </div>
+        </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          {/* 1. Applications Count */}
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div style={{ padding: '1.125rem', backgroundColor: '#fee2e2', color: '#ef4444', borderRadius: '0.875rem' }}>
+              <FileText size={32} />
+            </div>
+            <div>
+              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Applications</h3>
+              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.applications}</p>
+            </div>
+          </div>
+
+          {/* 2. Certificates Issued Count */}
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div style={{ padding: '1.125rem', backgroundColor: '#d1fae5', color: '#10b981', borderRadius: '0.875rem' }}>
+              <CheckCircle size={32} />
+            </div>
+            <div>
+              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Certificates Issued</h3>
+              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.certificatesIssued}</p>
+            </div>
+          </div>
+
+          {/* 3. Installed Count */}
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div style={{ padding: '1.125rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '0.875rem' }}>
+              <Wrench size={32} />
+            </div>
+            <div>
+              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Installed</h3>
+              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.installed}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Super Admin View: Full Dashboard
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
