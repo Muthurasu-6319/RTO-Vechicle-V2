@@ -242,11 +242,20 @@ const PurchaseEntry = () => {
           batch: selectedPurchaseEntry.invoiceNo || '',
           orderId: `ORD-${Date.now()}`
         };
-        await fetch(`${backendUrl}/api/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData)
-        });
+        try {
+          const res = await fetch(`${backendUrl}/api/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+          });
+          if (!res.ok && db) {
+            await addDoc(collection(db, 'orders'), { ...orderData, createdAt: new Date().toISOString() });
+          }
+        } catch (oErr) {
+          if (db) {
+            await addDoc(collection(db, 'orders'), { ...orderData, createdAt: new Date().toISOString() });
+          }
+        }
       }
 
       if (subQty > 0) {

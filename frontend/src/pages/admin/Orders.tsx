@@ -251,6 +251,9 @@ const Orders = () => {
       userEmail: user ? user.email : ''
     };
 
+    let saved = false;
+    let errorMsg = '';
+
     try {
       if (editingOrder) {
         const res = await fetch(`${backendUrl}/api/orders/${editingOrder.id}`, {
@@ -259,10 +262,10 @@ const Orders = () => {
           body: JSON.stringify(orderData)
         });
         if (res.ok) {
-          alert('Order updated successfully!');
+          saved = true;
         } else {
-          alert('Failed to update order');
-          return;
+          const errJson = await res.json().catch(() => ({}));
+          errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
         }
       } else {
         const res = await fetch(`${backendUrl}/api/orders`, {
@@ -271,19 +274,58 @@ const Orders = () => {
           body: JSON.stringify(orderData)
         });
         if (res.ok) {
-          alert('Order created successfully!');
+          saved = true;
         } else {
-          alert('Failed to create order');
-          return;
+          const errJson = await res.json().catch(() => ({}));
+          errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
         }
       }
+    } catch (err: any) {
+      console.warn('Backend save order failed, attempting Firestore Web SDK fallback:', err);
+      errorMsg = err?.message || 'Network error';
+    }
 
+    if (!saved && db) {
+      try {
+        if (editingOrder && editingOrder.id) {
+          await updateDoc(doc(db, 'orders', editingOrder.id), {
+            ...orderData,
+            updatedAt: new Date().toISOString()
+          });
+        } else {
+          await addDoc(collection(db, 'orders'), {
+            ...orderData,
+            createdAt: new Date().toISOString()
+          });
+
+          if (formData.userId) {
+            try {
+              await addDoc(collection(db, 'notifications'), {
+                userId: formData.userId,
+                title: 'Stock Added',
+                message: `${requestedQty} Stock certificates have been allocated to your account.`,
+                read: false,
+                createdAt: new Date().toISOString()
+              });
+            } catch (nErr) {
+              console.warn('Notification creation fallback failed:', nErr);
+            }
+          }
+        }
+        saved = true;
+      } catch (fErr: any) {
+        console.error('Firestore save order fallback failed:', fErr);
+        errorMsg = fErr?.message || errorMsg;
+      }
+    }
+
+    if (saved) {
+      alert(editingOrder ? 'Order updated successfully!' : 'Order created successfully!');
       setIsModalOpen(false);
       resetForm();
       fetchData();
-    } catch (err) {
-      console.error(err);
-      alert('Network error');
+    } else {
+      alert(`Failed to ${editingOrder ? 'update' : 'create'} order: ${errorMsg || 'Unknown error'}`);
     }
   };
 
@@ -292,19 +334,39 @@ const Orders = () => {
       return;
     }
 
+    let deleted = false;
+    let errorMsg = '';
+
     try {
       const res = await fetch(`${backendUrl}/api/orders/${order.id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
-        alert('Order deleted successfully!');
-        fetchData();
+        deleted = true;
       } else {
-        alert('Failed to delete order');
+        const errJson = await res.json().catch(() => ({}));
+        errorMsg = errJson.error || errJson.message || `Server status ${res.status}`;
       }
-    } catch (err) {
-      console.error(err);
-      alert('Network error');
+    } catch (err: any) {
+      console.warn('Backend delete order failed, attempting Firestore Web SDK fallback:', err);
+      errorMsg = err?.message || 'Network error';
+    }
+
+    if (!deleted && db && order.id) {
+      try {
+        await deleteDoc(doc(db, 'orders', order.id));
+        deleted = true;
+      } catch (fErr: any) {
+        console.error('Firestore delete order fallback failed:', fErr);
+        errorMsg = fErr?.message || errorMsg;
+      }
+    }
+
+    if (deleted) {
+      alert('Order deleted successfully!');
+      fetchData();
+    } else {
+      alert(`Failed to delete order: ${errorMsg || 'Unknown error'}`);
     }
   };
 

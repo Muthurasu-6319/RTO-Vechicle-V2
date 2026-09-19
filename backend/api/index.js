@@ -848,7 +848,7 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Create Order (Quota for 1-Year Validity / Stock)
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', requireDb, async (req, res) => {
   try {
     const data = req.body;
     data.createdAt = new Date().toISOString();
@@ -878,7 +878,7 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Update Order (Edit)
-app.put('/api/orders/:id', async (req, res) => {
+app.put('/api/orders/:id', requireDb, async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
@@ -908,7 +908,7 @@ app.put('/api/orders/:id', async (req, res) => {
 });
 
 // Delete Order
-app.delete('/api/orders/:id', async (req, res) => {
+app.delete('/api/orders/:id', requireDb, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -935,13 +935,14 @@ app.delete('/api/orders/:id', async (req, res) => {
 });
 
 // Get all Orders
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireDb, async (req, res) => {
   try {
-    const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
+    const snapshot = await db.collection('orders').get();
     const orders = [];
     snapshot.forEach(doc => {
       orders.push({ id: doc.id, ...doc.data() });
     });
+    orders.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     res.json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -950,7 +951,7 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // Get Orders for a specific User (User Received page)
-app.get('/api/orders/user/:uid', async (req, res) => {
+app.get('/api/orders/user/:uid', requireDb, async (req, res) => {
   try {
     const { uid } = req.params;
     const snapshot = await db.collection('orders').where('userId', '==', uid).get();
