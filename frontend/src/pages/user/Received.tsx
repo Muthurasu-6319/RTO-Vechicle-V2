@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Package, Calendar, MapPin, Hash } from 'lucide-react';
 import { useAuthUser, useUserOrders, useUserApplications } from '../../hooks/useUserData';
 
@@ -9,6 +9,9 @@ const Received = () => {
   const { data: orders = [], isLoading: ordersLoading } = useUserOrders(userId);
   const { data: applications = [], isLoading: appsLoading } = useUserApplications(userId);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const loading = authLoading || (!!userId && (ordersLoading || appsLoading));
 
   // Compute total, used, and balance stock from RAM cache
@@ -16,6 +19,8 @@ const Received = () => {
   const usedStock = applications.filter((app: any) => app.validity === '1 Year' || !app.validity).length;
   const balanceStock = totalStock - usedStock;
 
+  const totalPages = Math.ceil(orders.length / itemsPerPage) || 1;
+  const paginatedOrders = orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '2rem' }}>
@@ -52,9 +57,50 @@ const Received = () => {
             </div>
           </div>
 
-
           {/* Orders Table */}
           <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>
+            {/* Pagination controls above table */}
+            {orders.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, orders.length)} of {orders.length} entries
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(1)}
+                    style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none', backgroundColor: currentPage === 1 ? '#94a3b8' : '#2563eb', color: 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+                  >
+                    &laquo; First
+                  </button>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none', backgroundColor: currentPage === 1 ? '#94a3b8' : '#2563eb', color: 'white', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+                  >
+                    &lsaquo; Prev
+                  </button>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', padding: '0 0.5rem' }}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none', backgroundColor: currentPage >= totalPages ? '#94a3b8' : '#2563eb', color: 'white', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+                  >
+                    Next &rsaquo;
+                  </button>
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                    style={{ padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: 'none', backgroundColor: currentPage >= totalPages ? '#94a3b8' : '#2563eb', color: 'white', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+                  >
+                    Last &raquo;
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
@@ -70,9 +116,9 @@ const Received = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order, idx) => (
+                  {paginatedOrders.map((order, idx) => (
                     <tr key={order.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{idx + 1}</td>
+                      <td style={{ padding: '1rem 0.5rem', color: 'var(--text-secondary)' }}>{((currentPage - 1) * itemsPerPage) + idx + 1}</td>
                       <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{order.orderId}</td>
                       <td style={{ padding: '1rem 0.5rem' }}>{order.item}</td>
                       <td style={{ padding: '1rem 0.5rem' }}>{order.batch}</td>
