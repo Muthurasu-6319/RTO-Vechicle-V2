@@ -1212,39 +1212,69 @@ app.get('/api/purchase-entries', async (req, res) => {
   }
 });
 
-// Get manufacturer stock stats dynamically
+// Get manufacturer stock stats dynamically driven by Settings manufacturers
 app.get('/api/stats/manufacturer-stock', async (req, res) => {
   try {
-    const [purchaseSnap, orderSnap] = await Promise.all([
+    const [purchaseSnap, orderSnap, settingsDoc] = await Promise.all([
       db.collection('purchaseEntries').get(),
-      db.collection('orders').get()
+      db.collection('orders').get(),
+      db.collection('settings').doc('config').get()
     ]);
     
-    const stockMap = {}; // { 'Manufacturer A': { totalPurchased: 0, totalAllocated: 0, currentStock: 0 } }
-    
-    // Add up all purchases (incoming stock)
+    let mfgList = [];
+    if (settingsDoc.exists && settingsDoc.data().manufacturers) {
+      mfgList = settingsDoc.data().manufacturers;
+    }
+
+    const stockMap = {};
+
+    // 1. Initialize for manufacturers in Settings
+    mfgList.forEach(mfg => {
+      const rawMfg = mfg ? String(mfg).trim() : '';
+      if (!rawMfg) return;
+      const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+      if (!stockMap[key]) {
+        stockMap[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      }
+    });
+
+    // Fallback if mfgList is empty
+    if (Object.keys(stockMap).length === 0) {
+      purchaseSnap.forEach(doc => {
+        const rawMfg = doc.data().manufacturer ? String(doc.data().manufacturer).trim() : '';
+        if (!rawMfg) return;
+        const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+        if (!stockMap[key]) stockMap[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      });
+      orderSnap.forEach(doc => {
+        const rawMfg = doc.data().item ? String(doc.data().item).trim() : '';
+        if (!rawMfg) return;
+        const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+        if (!stockMap[key]) stockMap[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      });
+    }
+
+    // 2. Add up all purchases (incoming stock)
     purchaseSnap.forEach(doc => {
       const data = doc.data();
-      const mfg = data.manufacturer ? data.manufacturer.replace(/\s+/g, '').toUpperCase() : null;
+      const mfg = data.manufacturer ? String(data.manufacturer).replace(/\s+/g, '').toUpperCase() : null;
       const qty = Number(data.quantity) || 0;
-      if (mfg && qty > 0) {
-        if (!stockMap[mfg]) stockMap[mfg] = { totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      if (mfg && stockMap[mfg]) {
         stockMap[mfg].totalPurchased += qty;
       }
     });
     
-    // Subtract all allocations (orders given to users)
+    // 3. Subtract all allocations (orders given to users)
     orderSnap.forEach(doc => {
       const data = doc.data();
-      const mfg = data.item ? data.item.replace(/\s+/g, '').toUpperCase() : null; // Remember in Orders we changed 'item' to represent Manufacturer
+      const mfg = data.item ? String(data.item).replace(/\s+/g, '').toUpperCase() : null;
       const qty = Number(data.quantity) || 0;
-      if (mfg && qty > 0) {
-        if (!stockMap[mfg]) stockMap[mfg] = { totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      if (mfg && stockMap[mfg]) {
         stockMap[mfg].totalAllocated += qty;
       }
     });
     
-    // Calculate current stock
+    // 4. Calculate current stock
     for (const mfg in stockMap) {
       stockMap[mfg].currentStock = stockMap[mfg].totalPurchased - stockMap[mfg].totalAllocated;
     }

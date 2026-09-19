@@ -64,31 +64,56 @@ const Orders = () => {
     return normalized;
   };
 
-  const computeStockMap = (purchases: any[], ordersList: any[]) => {
+  const computeStockMap = (purchases: any[], ordersList: any[], mfgList: string[]) => {
     const map: Record<string, { manufacturer: string; totalPurchased: number; totalAllocated: number; currentStock: number }> = {};
 
+    // 1. Initialize for manufacturers in Settings
+    (mfgList || []).forEach(mfg => {
+      const rawMfg = mfg ? String(mfg).trim() : '';
+      if (!rawMfg) return;
+      const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+      if (!map[key]) {
+        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      }
+    });
+
+    // Fallback if mfgList is completely empty (e.g. initial setup)
+    if (Object.keys(map).length === 0) {
+      purchases.forEach(p => {
+        const rawMfg = p.manufacturer ? String(p.manufacturer).trim() : '';
+        if (!rawMfg) return;
+        const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+        if (!map[key]) map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      });
+      ordersList.forEach(o => {
+        const rawMfg = o.item || o.manufacturer ? String(o.item || o.manufacturer).trim() : '';
+        if (!rawMfg) return;
+        const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+        if (!map[key]) map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      });
+    }
+
+    // 2. Sum purchases
     purchases.forEach(p => {
       const rawMfg = p.manufacturer ? String(p.manufacturer).trim() : '';
       if (!rawMfg) return;
-      const key = rawMfg.toUpperCase();
-      const qty = Number(p.quantity) || 0;
-      if (!map[key]) {
-        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+      if (map[key]) {
+        map[key].totalPurchased += Number(p.quantity) || 0;
       }
-      map[key].totalPurchased += qty;
     });
 
+    // 3. Sum allocated orders
     ordersList.forEach(o => {
       const rawMfg = o.item || o.manufacturer ? String(o.item || o.manufacturer).trim() : '';
       if (!rawMfg) return;
-      const key = rawMfg.toUpperCase();
-      const qty = Number(o.quantity) || 0;
-      if (!map[key]) {
-        map[key] = { manufacturer: rawMfg, totalPurchased: 0, totalAllocated: 0, currentStock: 0 };
+      const key = rawMfg.replace(/\s+/g, '').toUpperCase();
+      if (map[key]) {
+        map[key].totalAllocated += Number(o.quantity) || 0;
       }
-      map[key].totalAllocated += qty;
     });
 
+    // 4. Calculate current stock
     for (const key in map) {
       map[key].currentStock = map[key].totalPurchased - map[key].totalAllocated;
     }
@@ -100,6 +125,7 @@ const Orders = () => {
     let fetchedFromBackend = false;
     let purchases: any[] = [];
     let ordersList: any[] = [];
+    let currentMfgList: string[] = [];
     try {
       const [ordersRes, usersRes, settingsRes, statsRes, entriesRes] = await Promise.all([
         fetch(`${backendUrl}/api/orders`),
@@ -109,6 +135,12 @@ const Orders = () => {
         fetch(`${backendUrl}/api/purchase-entries`)
       ]);
       
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        currentMfgList = settingsData.manufacturers || [];
+        setManufacturers(currentMfgList);
+      }
+
       if (ordersRes.ok && usersRes.ok) {
         const ordersData = await ordersRes.json();
         const usersData = await usersRes.json();
@@ -126,22 +158,8 @@ const Orders = () => {
           purchases = entriesData;
         }
       }
-      
-      if (settingsRes.ok) {
-        const settingsData = await settingsRes.json();
-        setManufacturers(settingsData.manufacturers || []);
-      }
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        if (Object.keys(statsData).length > 0) {
-          setStockMap(statsData);
-        } else {
-          setStockMap(computeStockMap(purchases, ordersList));
-        }
-      } else {
-        setStockMap(computeStockMap(purchases, ordersList));
-      }
+      setStockMap(computeStockMap(purchases, ordersList, currentMfgList));
     } catch (err) {
       console.warn('Backend orders fetch failed, using Firestore Web SDK fallback');
     }
@@ -155,18 +173,19 @@ const Orders = () => {
           getDocs(collection(db, 'purchaseEntries'))
         ]);
 
+        if (settingsDoc.exists()) {
+          currentMfgList = settingsDoc.data()?.manufacturers || [];
+          setManufacturers(currentMfgList);
+        }
+
         const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setOrders(processAndSyncOrders(allOrders));
 
         const allEntries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setStockMap(computeStockMap(allEntries, allOrders));
+        setStockMap(computeStockMap(allEntries, allOrders, currentMfgList));
 
         const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
-
-        if (settingsDoc.exists()) {
-          setManufacturers(settingsDoc.data()?.manufacturers || []);
-        }
       } catch (e) {
         console.error('Firestore orders fallback failed:', e);
       }
