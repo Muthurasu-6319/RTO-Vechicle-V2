@@ -190,23 +190,38 @@ app.post('/api/scan-barcode', async (req, res) => {
 });
 
 // In-memory cache for created admins to prevent login failure if database quota is exceeded
-const inMemoryAdmins = [];
+const inMemoryAdmins = [
+  {
+    id: 'default_standard_admin',
+    name: 'Standard Admin',
+    email: 'standard@gmail.com',
+    password: 'standard',
+    role: 'standard',
+    manufacturer: ''
+  }
+];
 
 // Admin Authentication Route
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanPassword = (password || '').trim();
   
   try {
     // 1. Check Hardcoded Superadmin Fallback
-    if (cleanEmail === 'admin@gmail.com' && password === 'admin') {
+    if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
       return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '' });
     }
 
-    // 2. Check inMemoryAdmins cache (case-insensitive email)
+    // 2. Check Hardcoded Standard Admin Fallback
+    if (cleanEmail === 'standard@gmail.com' && cleanPassword === 'standard') {
+      return res.json({ token: 'mock-jwt-token-for-standard-admin', role: 'standard', manufacturer: '' });
+    }
+
+    // 3. Check inMemoryAdmins cache (case-insensitive email, trimmed password)
     const memAdmin = inMemoryAdmins.find(a => 
       a.email && a.email.toLowerCase().trim() === cleanEmail && 
-      a.password === password
+      (a.password || '').trim() === cleanPassword
     );
     if (memAdmin) {
       return res.json({ 
@@ -216,7 +231,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // 3. Check Database for Admin Users
+    // 4. Check Database for Admin Users
     try {
       const adminsRef = db.collection('admins');
       const snapshot = await adminsRef.get();
@@ -226,7 +241,8 @@ app.post('/api/auth/login', async (req, res) => {
         snapshot.forEach(doc => {
           const adminData = doc.data();
           const adminEmail = (adminData.email || '').toLowerCase().trim();
-          if (adminEmail === cleanEmail && adminData.password === password) {
+          const adminPassword = (adminData.password || '').trim();
+          if (adminEmail === cleanEmail && adminPassword === cleanPassword) {
             validAdmin = { id: doc.id, ...adminData };
           }
         });
@@ -242,8 +258,8 @@ app.post('/api/auth/login', async (req, res) => {
 
           return res.json({ 
             token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
-            role: validAdmin.role, 
-            manufacturer: validAdmin.manufacturer 
+            role: validAdmin.role || 'standard', 
+            manufacturer: validAdmin.manufacturer || '' 
           });
         }
       }

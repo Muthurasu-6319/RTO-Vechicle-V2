@@ -127,6 +127,7 @@ const AdminManagement = () => {
       const payload = { 
         ...formData,
         email: formData.email.trim(),
+        password: formData.password.trim(),
         oldEmail: editingAdmin ? editingAdmin.email : undefined
       };
 
