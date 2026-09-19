@@ -210,12 +210,12 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     // 1. Check Hardcoded Superadmin Fallback
     if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
-      return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '' });
+      return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '', name: 'Super Admin', email: 'admin@gmail.com' });
     }
 
     // 2. Check Hardcoded Standard Admin Fallback
     if (cleanEmail === 'standard@gmail.com' && cleanPassword === 'standard') {
-      return res.json({ token: 'mock-jwt-token-for-standard-admin', role: 'standard', manufacturer: '' });
+      return res.json({ token: 'mock-jwt-token-for-standard-admin', role: 'standard', manufacturer: '', name: 'Standard Admin', email: 'standard@gmail.com' });
     }
 
     // 3. Check inMemoryAdmins cache (case-insensitive email, trimmed password)
@@ -227,7 +227,9 @@ app.post('/api/auth/login', async (req, res) => {
       return res.json({ 
         token: 'mock-jwt-token-for-admin-' + (memAdmin.id || 'mem'), 
         role: memAdmin.role || 'standard', 
-        manufacturer: memAdmin.manufacturer || '' 
+        manufacturer: memAdmin.manufacturer || '',
+        name: memAdmin.name || 'Standard Admin',
+        email: memAdmin.email || cleanEmail
       });
     }
 
@@ -259,7 +261,9 @@ app.post('/api/auth/login', async (req, res) => {
           return res.json({ 
             token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
             role: validAdmin.role || 'standard', 
-            manufacturer: validAdmin.manufacturer || '' 
+            manufacturer: validAdmin.manufacturer || '',
+            name: validAdmin.name || 'Standard Admin',
+            email: validAdmin.email || cleanEmail
           });
         }
       }

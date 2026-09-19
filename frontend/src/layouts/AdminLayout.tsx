@@ -54,15 +54,21 @@ const AdminLayout = () => {
   let token = sessionStorage.getItem('adminToken');
   let role = sessionStorage.getItem('adminRole');
   let manufacturer = sessionStorage.getItem('adminManufacturer');
+  let name = sessionStorage.getItem('adminName');
+  let email = sessionStorage.getItem('adminEmail');
 
   // If sessionStorage is empty on new tab load, initialize once from localStorage
   if (!token && localStorage.getItem('adminToken')) {
     token = localStorage.getItem('adminToken') || '';
     role = localStorage.getItem('adminRole') || '';
     manufacturer = localStorage.getItem('adminManufacturer') || '';
+    name = localStorage.getItem('adminName') || '';
+    email = localStorage.getItem('adminEmail') || '';
     if (token) sessionStorage.setItem('adminToken', token);
     if (role) sessionStorage.setItem('adminRole', role);
     if (manufacturer) sessionStorage.setItem('adminManufacturer', manufacturer);
+    if (name) sessionStorage.setItem('adminName', name);
+    if (email) sessionStorage.setItem('adminEmail', email);
   }
 
   const adminRole = (role || 'full admin').toLowerCase().trim();
@@ -72,6 +78,9 @@ const AdminLayout = () => {
   // Super Admin check: token matches super admin token or role contains 'full' or 'super'
   const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
   const isStandard = !isSuperAdmin && adminRole.includes('standard');
+
+  const displayName = name || (isStandard ? 'Standard Admin' : 'Super Admin');
+  const displayEmail = email || (isStandard ? '' : 'admin@gmail.com');
 
   let navItems = [
     { name: 'Overview', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
@@ -146,10 +155,19 @@ const AdminLayout = () => {
           <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <NotificationBell isAdmin={true} />
             <div className="admin-profile">
-              <div className="avatar">{isStandard ? 'S' : 'A'}</div>
-              <div className="admin-info">
-                <span className="admin-name">{isStandard ? (adminManufacturer ? `${adminManufacturer} Admin` : 'Standard Admin') : 'Super Admin'}</span>
-                <span className="admin-role">{isStandard ? 'Standard Admin' : 'Super Admin'}</span>
+              <div className="avatar">{(displayName || 'A').charAt(0).toUpperCase()}</div>
+              <div className="admin-info" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <span className="admin-name" style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1e293b', lineHeight: 1.2 }}>
+                  {displayName}
+                </span>
+                {displayEmail && (
+                  <span className="admin-email" style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, lineHeight: 1.2 }}>
+                    {displayEmail}
+                  </span>
+                )}
+                <span className="admin-role" style={{ fontSize: '0.7rem', color: isStandard ? '#4f46e5' : '#166534', fontWeight: 600, lineHeight: 1.2 }}>
+                  {isStandard ? 'Standard Admin' : 'Super Admin'}
+                </span>
               </div>
             </div>
           </div>
