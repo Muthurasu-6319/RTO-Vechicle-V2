@@ -467,74 +467,48 @@ app.delete('/api/users/:uid', async (req, res) => {
 app.get('/api/stats/admin', async (req, res) => {
   try {
     const { manufacturer } = req.query;
+    const targetManu = (manufacturer || '').toLowerCase().trim();
 
-    if (manufacturer) {
-      let appsQuery = db.collection('applications').where('manufacturer', '==', manufacturer);
-      const snapshot = await appsQuery.get();
-      let totalApps = 0;
-      let pendingApps = 0;
-      let certifiedApps = 0;
-      let installedApps = 0;
+    const appsSnapshot = await db.collection('applications').get();
+    let totalApps = 0;
+    let pendingApps = 0;
+    let certifiedApps = 0;
+    let installedApps = 0;
 
-      snapshot.forEach(doc => {
+    appsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const appManu = (data.manufacturer || data.vltdManufacturer || '').toLowerCase().trim();
+      
+      // If manufacturer param is passed, filter by manufacturer. Otherwise count all apps.
+      if (!targetManu || appManu === targetManu) {
         totalApps++;
-        const data = doc.data();
-        const st = data.status;
+        const st = data.status || 'Pending';
         if (st === 'Pending') pendingApps++;
-        if (st === 'Certified' || st === 'RTOApproved' || st === 'TempCertUploaded') certifiedApps++;
-        if (st === 'Installed') installedApps++;
-      });
-
-      return res.json({
-        totalUsers: 0,
-        applications: totalApps,
-        pendingReview: pendingApps,
-        certificatesIssued: certifiedApps,
-        installed: installedApps,
-        totalOrders: 0,
-        deviceStock: 0,
-        subscriptions: 0
-      });
-    }
-
-    const cachedStats = cache.get('admin_stats');
-    if (cachedStats) {
-      return res.json(cachedStats);
-    }
+        if (st === 'Certified') certifiedApps++;
+        if (['Installed', 'TempCertUploaded', 'RTOApproved'].includes(st)) installedApps++;
+      }
+    });
 
     const usersSnapshot = await db.collection('users').count().get();
     const totalUsers = usersSnapshot.data().count;
 
-    const appsSnapshot = await db.collection('applications').count().get();
-    const totalApps = appsSnapshot.data().count;
-
-    const pendingSnapshot = await db.collection('applications').where('status', '==', 'Pending').count().get();
-    const pendingApps = pendingSnapshot.data().count;
-
-    const certifiedSnapshot = await db.collection('applications').where('status', '==', 'Certified').count().get();
-    const certifiedApps = certifiedSnapshot.data().count;
-
-    const installedSnapshot = await db.collection('applications').where('status', '==', 'Installed').count().get();
-    const installedApps = installedSnapshot.data().count;
-
     const ordersSnapshot = await db.collection('orders').count().get();
     const totalOrders = ordersSnapshot.data().count;
 
-    // Get device stock from settings
     const stockDoc = await db.collection('settings').doc('dashboard').get();
     const deviceStock = stockDoc.exists ? (stockDoc.data().deviceStock || 0) : 0;
 
     const statsData = {
-      totalUsers: totalUsers,
+      totalUsers: targetManu ? 0 : totalUsers,
       applications: totalApps,
       pendingReview: pendingApps,
       certificatesIssued: certifiedApps,
       installed: installedApps,
-      totalOrders: totalOrders,
-      deviceStock: deviceStock,
+      totalOrders: targetManu ? 0 : totalOrders,
+      deviceStock: targetManu ? 0 : deviceStock,
       subscriptions: 0
     };
-    cache.put('admin_stats', statsData, 2 * 60 * 1000); // 2 minutes cache
+    
     res.json(statsData);
   } catch (error) {
     console.error('Error fetching stats:', error);

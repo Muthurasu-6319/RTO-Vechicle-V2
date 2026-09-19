@@ -53,7 +53,7 @@ const Dashboard = () => {
             getDoc(doc(db, 'settings', 'dashboard'))
           ]);
 
-          let allApps = appsSnap.docs.map(d => d.data());
+          let allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
           if (isStandard && adminManufacturer) {
             allApps = allApps.filter((app: any) => 
@@ -61,20 +61,20 @@ const Dashboard = () => {
             );
           }
 
-          const pendingApps = allApps.filter((app: any) => app.status === 'Pending').length;
-          const certifiedApps = allApps.filter((app: any) => ['Certified', 'TempCertUploaded', 'RTOApproved'].includes(app.status)).length;
-          const installedApps = allApps.filter((app: any) => app.status === 'Installed').length;
+          const pendingApps = allApps.filter((app: any) => (app.status || 'Pending') === 'Pending').length;
+          const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
+          const installedApps = allApps.filter((app: any) => ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)).length;
           const deviceStock = stockDoc.exists() ? (stockDoc.data()?.deviceStock || 0) : 0;
 
           setStats({
-            totalUsers: usersSnap.size,
+            totalUsers: isStandard ? 0 : usersSnap.size,
             applications: allApps.length,
             pendingReview: pendingApps,
             certificatesIssued: certifiedApps,
             installed: installedApps,
-            totalOrders: ordersSnap.size,
-            deviceStock: deviceStock,
-            subscriptions: subsSnap.size
+            totalOrders: isStandard ? 0 : ordersSnap.size,
+            deviceStock: isStandard ? 0 : deviceStock,
+            subscriptions: isStandard ? 0 : subsSnap.size
           });
         } catch (err) {
           console.error('Error fetching fallback stats:', err);
