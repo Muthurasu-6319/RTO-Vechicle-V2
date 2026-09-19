@@ -15,12 +15,14 @@ import {
   Menu,
   X,
   Package,
-  ShoppingCart
+  ShoppingCart,
+  ChevronDown
 } from 'lucide-react';
 import './AdminLayout.css';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+  const [certMenuOpen, setCertMenuOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -87,8 +89,7 @@ const AdminLayout = () => {
     { name: 'Admin Management', path: '/admin/management', icon: <Users size={20} /> },
     { name: 'Manage Users', path: '/admin/users', icon: <Users size={20} /> },
     { name: 'Applications', path: '/admin/applications', icon: <FileText size={20} /> },
-    { name: 'Certificates', path: '/admin/certificates', icon: <Award size={20} /> },
-    { name: 'Approved', path: '/admin/approved', icon: <CheckCircle size={20} /> },
+    { name: 'Certificates', path: '/admin/certificates', icon: <Award size={20} />, isDropdown: true },
     { name: 'Orders', path: '/admin/orders', icon: <Package size={20} /> },
     { name: 'Purchase Entry', path: '/admin/purchase-entry', icon: <ShoppingCart size={20} /> },
     { name: 'Subscriptions', path: '/admin/subscriptions', icon: <CreditCard size={20} /> },
@@ -97,7 +98,7 @@ const AdminLayout = () => {
 
   if (isStandard) {
     navItems = navItems.filter(item => 
-      ['Overview', 'Applications', 'Certificates', 'Approved'].includes(item.name)
+      ['Overview', 'Applications', 'Certificates'].includes(item.name)
     );
   }
 
@@ -123,17 +124,69 @@ const AdminLayout = () => {
 
         <nav className="sidebar-nav">
           <ul>
-            {navItems.map((item) => (
-              <li key={item.name}>
-                <NavLink 
-                  to={item.path} 
-                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                >
-                  <span className="nav-icon">{item.icon}</span>
-                  <span className="nav-text">{item.name}</span>
-                </NavLink>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              if (item.isDropdown && item.name === 'Certificates') {
+                const isCertActive = location.pathname.startsWith('/admin/certificates') || location.pathname.startsWith('/admin/approved');
+                return (
+                  <li key="Certificates" style={{ display: 'flex', flexDirection: 'column' }}>
+                    <button 
+                      onClick={() => setCertMenuOpen(!certMenuOpen)}
+                      className={`nav-link ${isCertActive ? 'active' : ''}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: 'none', background: 'none', cursor: 'pointer', width: '100%' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <span className="nav-icon"><Award size={20} /></span>
+                        <span className="nav-text">Certificates</span>
+                      </div>
+                      <ChevronDown size={16} style={{ transform: certMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', color: 'var(--text-secondary)' }} />
+                    </button>
+                    
+                    {certMenuOpen && (
+                      <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '2.25rem', marginTop: '0.25rem', gap: '0.25rem' }}>
+                        <NavLink 
+                          to="/admin/certificates" 
+                          className={({ isActive }) => `sub-nav-link ${isActive ? 'active' : ''}`}
+                          style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.875rem', textDecoration: 'none',
+                            color: isActive ? '#3b82f6' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? '#eff6ff' : 'transparent',
+                            fontWeight: isActive ? 600 : 500
+                          })}
+                        >
+                          <Settings size={16} />
+                          <span>Installed</span>
+                        </NavLink>
+                        <NavLink 
+                          to="/admin/approved" 
+                          className={({ isActive }) => `sub-nav-link ${isActive ? 'active' : ''}`}
+                          style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.875rem', textDecoration: 'none',
+                            color: isActive ? '#3b82f6' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? '#eff6ff' : 'transparent',
+                            fontWeight: isActive ? 600 : 500
+                          })}
+                        >
+                          <CheckCircle size={16} />
+                          <span>Certified</span>
+                        </NavLink>
+                      </div>
+                    )}
+                  </li>
+                );
+              }
+
+              return (
+                <li key={item.name}>
+                  <NavLink 
+                    to={item.path} 
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    <span className="nav-text">{item.name}</span>
+                  </NavLink>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
