@@ -466,9 +466,6 @@ app.delete('/api/users/:uid', async (req, res) => {
 // Admin Route: Get Stats
 app.get('/api/stats/admin', async (req, res) => {
   try {
-    const { manufacturer } = req.query;
-    const targetManu = (manufacturer || '').toLowerCase().trim();
-
     const appsSnapshot = await db.collection('applications').get();
     let totalApps = 0;
     let pendingApps = 0;
@@ -477,16 +474,11 @@ app.get('/api/stats/admin', async (req, res) => {
 
     appsSnapshot.forEach(doc => {
       const data = doc.data();
-      const appManu = (data.manufacturer || data.vltdManufacturer || '').toLowerCase().trim();
-      
-      // If manufacturer param is passed, filter by manufacturer. Otherwise count all apps.
-      if (!targetManu || appManu === targetManu) {
-        totalApps++;
-        const st = data.status || 'Pending';
-        if (st === 'Pending') pendingApps++;
-        if (st === 'Certified') certifiedApps++;
-        if (['Installed', 'TempCertUploaded', 'RTOApproved'].includes(st)) installedApps++;
-      }
+      totalApps++;
+      const st = data.status || 'Pending';
+      if (st === 'Pending') pendingApps++;
+      if (st === 'Certified') certifiedApps++;
+      if (['Installed', 'TempCertUploaded', 'RTOApproved'].includes(st)) installedApps++;
     });
 
     const usersSnapshot = await db.collection('users').count().get();
@@ -499,13 +491,13 @@ app.get('/api/stats/admin', async (req, res) => {
     const deviceStock = stockDoc.exists ? (stockDoc.data().deviceStock || 0) : 0;
 
     const statsData = {
-      totalUsers: targetManu ? 0 : totalUsers,
+      totalUsers,
       applications: totalApps,
       pendingReview: pendingApps,
       certificatesIssued: certifiedApps,
       installed: installedApps,
-      totalOrders: targetManu ? 0 : totalOrders,
-      deviceStock: targetManu ? 0 : deviceStock,
+      totalOrders,
+      deviceStock,
       subscriptions: 0
     };
     

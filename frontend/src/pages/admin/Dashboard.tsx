@@ -26,9 +26,7 @@ const Dashboard = () => {
       let fetchedFromBackend = false;
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        const url = isStandard && adminManufacturer 
-          ? `${backendUrl}/api/stats/admin?manufacturer=${encodeURIComponent(adminManufacturer)}`
-          : `${backendUrl}/api/stats/admin`;
+        const url = `${backendUrl}/api/stats/admin`;
 
         const res = await fetch(url);
         if (res.ok) {
@@ -53,13 +51,7 @@ const Dashboard = () => {
             getDoc(doc(db, 'settings', 'dashboard'))
           ]);
 
-          let allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-          if (isStandard && adminManufacturer) {
-            allApps = allApps.filter((app: any) => 
-              (app.manufacturer || app.vltdManufacturer || '').toLowerCase().trim() === adminManufacturer.toLowerCase().trim()
-            );
-          }
+          const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
           const pendingApps = allApps.filter((app: any) => (app.status || 'Pending') === 'Pending').length;
           const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
@@ -67,14 +59,14 @@ const Dashboard = () => {
           const deviceStock = stockDoc.exists() ? (stockDoc.data()?.deviceStock || 0) : 0;
 
           setStats({
-            totalUsers: isStandard ? 0 : usersSnap.size,
+            totalUsers: usersSnap.size,
             applications: allApps.length,
             pendingReview: pendingApps,
             certificatesIssued: certifiedApps,
             installed: installedApps,
-            totalOrders: isStandard ? 0 : ordersSnap.size,
-            deviceStock: isStandard ? 0 : deviceStock,
-            subscriptions: isStandard ? 0 : subsSnap.size
+            totalOrders: ordersSnap.size,
+            deviceStock: deviceStock,
+            subscriptions: subsSnap.size
           });
         } catch (err) {
           console.error('Error fetching fallback stats:', err);
@@ -82,7 +74,7 @@ const Dashboard = () => {
       }
     };
     fetchStats();
-  }, [isStandard, adminManufacturer]);
+  }, []);
 
   // Standard Admin View: 3 Cards Only (Applications, Certificates Issued, Installed)
   if (isStandard) {
@@ -185,6 +177,16 @@ const Dashboard = () => {
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Certificates Issued</h3>
             <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.certificatesIssued}</p>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ padding: '1rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '0.75rem' }}>
+            <Wrench size={28} />
+          </div>
+          <div>
+            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Installed</h3>
+            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.installed}</p>
           </div>
         </div>
 
