@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Award, Upload, CheckCircle, Search, Clock, FileText, Trash2, Eye, User } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import UploadButton from '../../components/UploadButton';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const Certificates = () => {
+  const queryClient = useQueryClient();
   const [applications, setApplications] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,6 +194,8 @@ const Certificates = () => {
       if (res.ok) {
         setApplications(prev => prev.filter(app => app.id !== id));
         setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+        queryClient.invalidateQueries({ queryKey: ['applications'] });
+        queryClient.invalidateQueries({ queryKey: ['quota'] });
       } else {
         alert('Failed to delete application.');
       }
@@ -213,6 +217,8 @@ const Certificates = () => {
       );
       setApplications(prev => prev.filter(app => !selectedIds.includes(app.id)));
       setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      queryClient.invalidateQueries({ queryKey: ['quota'] });
     } catch (err) {
       console.error(err);
       alert('Error during bulk deletion.');

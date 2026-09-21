@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Download, Search, Trash2, Eye } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 import { db } from '../../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
 const ApprovedApplications = () => {
+  const queryClient = useQueryClient();
   const [applications, setApplications] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +180,8 @@ const ApprovedApplications = () => {
         // Remove from local state immediately for better UX or re-fetch
         setApplications(prev => prev.filter(app => app.id !== id));
         setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+        queryClient.invalidateQueries({ queryKey: ['applications'] });
+        queryClient.invalidateQueries({ queryKey: ['quota'] });
       } else {
         alert('Failed to delete application.');
       }
@@ -199,6 +203,8 @@ const ApprovedApplications = () => {
       );
       setApplications(prev => prev.filter(app => !selectedIds.includes(app.id)));
       setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      queryClient.invalidateQueries({ queryKey: ['quota'] });
     } catch (err) {
       console.error(err);
       alert('Error during bulk deletion.');

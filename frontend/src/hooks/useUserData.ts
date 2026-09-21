@@ -30,6 +30,8 @@ export function useAuthUser() {
 export function useUserApplications(userId?: string) {
   return useQuery({
     queryKey: ['applications', userId],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!userId) return [];
       
@@ -152,6 +154,8 @@ export function useUserSubscriptions(userId?: string) {
 export function useUserQuota(userId?: string) {
   return useQuery({
     queryKey: ['quota', userId],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!userId) return null;
       try {

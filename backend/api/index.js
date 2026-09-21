@@ -1190,16 +1190,19 @@ app.get('/api/users/:uid/quota', async (req, res) => {
     // Used 2-Year (applications with validity '2 Years')
     let used2Year = 0;
     try {
-      const appsSnap = await db.collection('applications').where('userId', '==', uid).get();
-      appsSnap.forEach(doc => {
-        const val = doc.data().validity;
-        if (val === '2 Years') {
-          used2Year++;
-        } else {
-          used1Year++;
+      const allApps = await getApplicationsCached();
+      allApps.forEach(app => {
+        if (app.userId === uid || (userEmail && app.userEmail === userEmail)) {
+          if (app.validity === '2 Years') {
+            used2Year++;
+          } else {
+            used1Year++;
+          }
         }
       });
-    } catch (e) { /* ignore index errors */ }
+    } catch (e) {
+      console.warn('Error calculating used quota in /api/users/:uid/quota:', e.message);
+    }
 
     res.json({ 
       totalQuota: totalQuota1Year, 
