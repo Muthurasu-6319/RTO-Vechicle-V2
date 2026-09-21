@@ -121,6 +121,7 @@ const Certificates = () => {
       
     const payload = uploadType === 'temp' ? { tempCertUrl: url } : { vahanCertUrl: url };
 
+    let success = false;
     try {
       const res = await fetch(`${backendUrl}${endpoint}`, {
         method: 'PUT',
@@ -129,12 +130,30 @@ const Certificates = () => {
       });
       
       if (res.ok) {
-        alert(uploadType === 'temp' ? 'Temporary Certificate Uploaded!' : 'Vahan Certificate Uploaded!');
-        setUploadingAppId(null);
-        fetchApplications(); // refresh list
+        success = true;
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Backend upload cert failed, trying Firestore Web SDK fallback', err);
+    }
+
+    if (!success && db) {
+      try {
+        const updateData: any = uploadType === 'temp' 
+          ? { status: 'TempCertUploaded', tempCertUrl: url, tempCertUploadedAt: new Date().toISOString() }
+          : { status: 'Certified', vahanCertUrl: url, certifiedAt: new Date().toISOString() };
+        
+        await updateDoc(doc(db, 'applications', uploadingAppId), updateData);
+        success = true;
+      } catch (e) {
+        console.error('Firestore fallback upload cert error:', e);
+      }
+    }
+
+    if (success) {
+      alert(uploadType === 'temp' ? 'Temporary Certificate Uploaded!' : 'Vahan Certificate Uploaded!');
+      setUploadingAppId(null);
+      fetchApplications(); // refresh list
+    } else {
       alert('Error saving certificate URL to database.');
     }
   };

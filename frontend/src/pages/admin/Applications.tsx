@@ -3,7 +3,7 @@ import { FileText, CheckCircle, Clock, X, Copy, Check, Search, User, Eye, Filter
 import { useNavigate } from 'react-router-dom';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
 import { db } from '../../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const Applications = () => {
   const navigate = useNavigate();
@@ -100,36 +100,66 @@ const Applications = () => {
 
   const handleApprove = async (id: string) => {
     if (!window.confirm('Are you sure you want to approve this application and move it to Installed?')) return;
+    let approved = false;
     try {
       const res = await fetch(`${backendUrl}/api/applications/${id}/approve`, {
         method: 'PUT'
       });
       if (res.ok) {
-        setSelectedApp(null);
-        navigate('/admin/certificates');
-      } else {
-        alert('Failed to approve application');
+        approved = true;
       }
     } catch (err) {
-      console.error(err);
+      console.warn('Backend approve failed, trying Firestore Web SDK fallback', err);
+    }
+
+    if (!approved && db) {
+      try {
+        await updateDoc(doc(db, 'applications', id), {
+          status: 'Installed',
+          approvedAt: new Date().toISOString()
+        });
+        approved = true;
+      } catch (e) {
+        console.error('Firestore fallback approve error:', e);
+      }
+    }
+
+    if (approved) {
+      setSelectedApp(null);
+      navigate('/admin/certificates');
+    } else {
+      alert('Failed to approve application');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this application?')) return;
+    let deleted = false;
     try {
       const res = await fetch(`${backendUrl}/api/applications/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
-        setApplications(prev => prev.filter(app => app.id !== id));
-        setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
-      } else {
-        alert('Failed to delete application.');
+        deleted = true;
       }
     } catch (err) {
-      console.error(err);
-      alert('Error deleting application.');
+      console.warn('Backend delete failed, trying Firestore Web SDK fallback', err);
+    }
+
+    if (!deleted && db) {
+      try {
+        await deleteDoc(doc(db, 'applications', id));
+        deleted = true;
+      } catch (e) {
+        console.error('Firestore fallback delete error:', e);
+      }
+    }
+
+    if (deleted) {
+      setApplications(prev => prev.filter(app => app.id !== id));
+      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+    } else {
+      alert('Failed to delete application.');
     }
   };
 
