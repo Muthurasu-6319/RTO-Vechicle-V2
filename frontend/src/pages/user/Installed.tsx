@@ -17,9 +17,10 @@ const Installed = () => {
 
   const loading = authLoading || (!!userId && appsLoading);
 
-  // Filter pending/installed applications directly from RAM cache
+  // Filter pending/installed applications belonging strictly to this user
   const applications = allApps.filter((app: any) =>
-    ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+    ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
+    (!userId || app.userId === userId)
   );
 
   const handleRtoApprove = async (id: string) => {

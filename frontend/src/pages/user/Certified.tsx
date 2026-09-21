@@ -15,8 +15,8 @@ const Certified = () => {
 
   const loading = authLoading || (!!userId && appsLoading);
 
-  // Filter certified applications from RAM cache
-  const applications = allApps.filter((app: any) => app.status === 'Certified');
+  // Filter certified applications belonging strictly to this user
+  const applications = allApps.filter((app: any) => app.status === 'Certified' && (!userId || app.userId === userId));
 
 
   const formatDateTime = (isoStr: string) => {

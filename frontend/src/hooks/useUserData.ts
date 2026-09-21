@@ -32,12 +32,32 @@ export function useUserApplications(userId?: string) {
     queryKey: ['applications', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('userId', '==', userId));
-      const snapshot = await getDocs(q);
-      const allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort in memory by createdAt descending
-      return allApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      
+      // 1. Try Backend API first
+      try {
+        const res = await fetch(`${backendUrl}/api/applications?userId=${encodeURIComponent(userId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const userApps = data.filter((app: any) => app && app.userId === userId);
+            userApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+            return userApps;
+          }
+        }
+      } catch (err) {
+        console.warn('Backend user applications fetch failed, using Firestore fallback', err);
+      }
+
+      // 2. Client-side Firestore Fallback
+      if (db) {
+        const appsRef = collection(db, 'applications');
+        const q = query(appsRef, where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        const allApps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const userApps = allApps.filter((app: any) => app && app.userId === userId);
+        return userApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      }
+      return [];
     },
     enabled: !!userId,
   });
