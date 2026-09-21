@@ -42,43 +42,22 @@ const Certified = () => {
     const filename = `${vehicleNo}_Vahan_Certificate.pdf`;
     const certUrl = getCertUrl(app);
 
+    if (!certUrl && !appId) {
+      alert('Certificate file URL is not available yet.');
+      return;
+    }
+
     try {
       if (appId) setDownloadingId(appId);
 
-      // Method 1: Fetch binary PDF via backend download-proxy using Application ID
-      const downloadProxyUrl = appId
-        ? `${backendUrl}/api/download-proxy?id=${appId}&type=vahan&filename=${encodeURIComponent(filename)}`
-        : `${backendUrl}/api/download-proxy?url=${encodeURIComponent(certUrl)}&filename=${encodeURIComponent(filename)}`;
-
-      try {
-        const proxyRes = await fetch(downloadProxyUrl);
-        if (proxyRes.ok) {
-          const blob = await proxyRes.blob();
-          const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-          const blobUrl = URL.createObjectURL(pdfBlob);
-
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-          return;
-        }
-      } catch (proxyErr) {
-        console.warn('Proxy blob download error, trying direct blob fetch:', proxyErr);
-      }
-
-      // Method 2: Direct Blob fetch from certUrl if available
+      // Priority 1: Instant direct download if certUrl is present on app object
       if (certUrl) {
         try {
-          const fileRes = await fetch(certUrl);
-          if (fileRes.ok) {
-            const blob = await fileRes.blob();
+          const res = await fetch(certUrl);
+          if (res.ok) {
+            const blob = await res.blob();
             const pdfBlob = new Blob([blob], { type: 'application/pdf' });
             const blobUrl = URL.createObjectURL(pdfBlob);
-
             const a = document.createElement('a');
             a.href = blobUrl;
             a.download = filename;
@@ -88,25 +67,40 @@ const Certified = () => {
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
             return;
           }
-        } catch (blobErr) {
-          console.warn('Direct blob fetch failed:', blobErr);
+        } catch (corsErr) {
+          console.warn('CORS blob fetch failed, triggering direct link download:', corsErr);
         }
+
+        // Direct anchor download fallback
+        const a = document.createElement('a');
+        a.href = certUrl;
+        a.download = filename;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
       }
 
-      // Method 3: Invisible IFrame fallback (never replaces current page window!)
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = downloadProxyUrl;
-      document.body.appendChild(iframe);
-      setTimeout(() => iframe.remove(), 60000);
-
+      // Priority 2: Backend proxy fallback if certUrl is not directly on object
+      if (appId) {
+        const downloadProxyUrl = `${backendUrl}/api/download-proxy?id=${appId}&type=vahan&filename=${encodeURIComponent(filename)}`;
+        const a = document.createElement('a');
+        a.href = downloadProxyUrl;
+        a.download = filename;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
     } catch (err) {
       console.error('Download error:', err);
       if (certUrl) {
         window.open(certUrl, '_blank');
       }
     } finally {
-      if (appId) setDownloadingId(null);
+      setTimeout(() => setDownloadingId(null), 300);
     }
   };
 
