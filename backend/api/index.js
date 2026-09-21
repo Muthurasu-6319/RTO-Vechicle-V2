@@ -786,26 +786,31 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 app.get('/api/settings', async (req, res) => {
   try {
     const cachedSettings = cache.get('settings');
-    if (cachedSettings) {
+    if (cachedSettings && ((cachedSettings.manufacturers && cachedSettings.manufacturers.length > 0) || (cachedSettings.rtoOffices && cachedSettings.rtoOffices.length > 0))) {
       return res.json(cachedSettings);
     }
 
-    let docRef = db.collection('settings').doc('general');
-    let doc = await docRef.get();
+    const [genDoc, configDoc] = await Promise.all([
+      db.collection('settings').doc('general').get(),
+      db.collection('settings').doc('config').get()
+    ]);
     
-    if (!doc.exists) {
-      docRef = db.collection('settings').doc('config');
-      doc = await docRef.get();
+    const genData = genDoc.exists ? genDoc.data() : {};
+    const configData = configDoc.exists ? configDoc.data() : {};
+
+    const manufacturers = (genData.manufacturers && genData.manufacturers.length > 0)
+      ? genData.manufacturers
+      : (configData.manufacturers || []);
+
+    const rtoOffices = (genData.rtoOffices && genData.rtoOffices.length > 0)
+      ? genData.rtoOffices
+      : (configData.rtoOffices || []);
+
+    const result = { manufacturers, rtoOffices };
+    if (manufacturers.length > 0 || rtoOffices.length > 0) {
+      cache.put('settings', result, 10 * 60 * 1000); // 10 minutes cache
     }
-    
-    if (!doc.exists) {
-      // Return default if not exists
-      return res.json({ manufacturers: [], rtoOffices: [] });
-    }
-    
-    const data = doc.data();
-    cache.put('settings', data, 10 * 60 * 1000); // 10 minutes cache
-    res.json(data);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching settings:', error);
     res.status(500).json({ error: error.message });

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import UploadButton from '../../components/UploadButton';
 import { Camera, FileText } from 'lucide-react';
-import { auth } from '../../firebase';
+import { auth, db } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const ApplyCertificate = () => {
   const navigate = useNavigate();
@@ -43,15 +44,41 @@ const ApplyCertificate = () => {
   useEffect(() => {
     // Fetch Settings
     const fetchSettings = async () => {
+      let fetchedFromBackend = false;
       try {
         const res = await fetch(`${backendUrl}/api/settings`);
         if (res.ok) {
           const data = await res.json();
-          setManufacturers(data.manufacturers || []);
-          setRtoOffices(data.rtoOffices || []);
+          if ((data.manufacturers && data.manufacturers.length > 0) || (data.rtoOffices && data.rtoOffices.length > 0)) {
+            setManufacturers(data.manufacturers || []);
+            setRtoOffices(data.rtoOffices || []);
+            fetchedFromBackend = true;
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch settings', err);
+        console.warn('Backend settings fetch failed, using Firestore Web SDK fallback', err);
+      }
+
+      if (!fetchedFromBackend && db) {
+        try {
+          const configDoc = await getDoc(doc(db, 'settings', 'config'));
+          const genDoc = await getDoc(doc(db, 'settings', 'general'));
+          const configData = configDoc.exists() ? configDoc.data() : {};
+          const genData = genDoc.exists() ? genDoc.data() : {};
+
+          const manus = (genData.manufacturers && genData.manufacturers.length > 0)
+            ? genData.manufacturers
+            : (configData.manufacturers || []);
+
+          const rtos = (genData.rtoOffices && genData.rtoOffices.length > 0)
+            ? genData.rtoOffices
+            : (configData.rtoOffices || []);
+
+          setManufacturers(manus);
+          setRtoOffices(rtos);
+        } catch (e) {
+          console.error('Firestore settings fallback failed:', e);
+        }
       }
     };
     
