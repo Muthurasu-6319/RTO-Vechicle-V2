@@ -219,78 +219,48 @@ const ApprovedApplications = () => {
     }
   };
 
-  const handleDownload = async (appId: string, vehicleNo: string, fallbackUrl?: string) => {
-    // Open a blank tab synchronously to preserve user gesture context and prevent browser popup blocking
-    const win = window.open('about:blank', '_blank');
+  const getCertUrl = (app: any) => {
+    if (!app) return '';
+    return app.vahanCertUrl || app.vahanCert || app.certUrl || app.certificateUrl || app.url || app.fileUrl || app.tempCertUrl || '';
+  };
 
-    try {
-      setDownloadingId(appId);
+  const handleDownload = async (app: any) => {
+    const certUrl = getCertUrl(app);
+    const vehicleNo = (app?.vehicleNo || 'Document').toUpperCase();
+    const appId = app?.id;
 
-      let downloadUrl = '';
-      let filename = `${(vehicleNo || 'Document').toUpperCase()}_Vahan_Certificate.pdf`;
+    // Direct Browser Open (100% synchronous with click gesture - bypasses popup blocker & CORS)
+    if (certUrl) {
+      const windowRef = window.open(certUrl, '_blank', 'noopener,noreferrer');
+      if (!windowRef) {
+        window.location.href = certUrl;
+      }
+      return;
+    }
 
-      // Step 1: Try getting signed URL from backend
+    // Fallback: Try backend download endpoint if certUrl is not directly on object
+    if (appId) {
       try {
+        setDownloadingId(appId);
         const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=vahan`);
         if (res.ok) {
           const data = await res.json();
           if (data.downloadUrl) {
-            downloadUrl = data.downloadUrl;
-            if (data.filename) filename = data.filename;
+            const windowRef = window.open(data.downloadUrl, '_blank', 'noopener,noreferrer');
+            if (!windowRef) {
+              window.location.href = data.downloadUrl;
+            }
+            return;
           }
         }
-      } catch (fetchErr) {
-        console.warn('Backend download endpoint fetch failed, using fallback:', fetchErr);
+      } catch (e) {
+        console.warn('Backend download endpoint fetch failed:', e);
+      } finally {
+        setDownloadingId(null);
       }
-
-      // Step 2: Fallback to direct URL if backend did not return downloadUrl
-      if (!downloadUrl && fallbackUrl) {
-        downloadUrl = fallbackUrl;
-      }
-
-      if (!downloadUrl) {
-        if (win) win.close();
-        alert('Certificate file is not available yet.');
-        return;
-      }
-
-      // Step 3: Try Blob fetch for silent direct download with custom filename
-      try {
-        const fileRes = await fetch(downloadUrl);
-        if (fileRes.ok) {
-          const blob = await fileRes.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-          if (win) win.close();
-          return;
-        }
-      } catch (blobErr) {
-        console.warn('Blob download skipped (CORS or network), navigating open window:', blobErr);
-      }
-
-      // Step 4: Fallback to direct navigation of the opened window
-      if (win && !win.closed) {
-        win.location.href = downloadUrl;
-      } else {
-        window.location.href = downloadUrl;
-      }
-    } catch (err: any) {
-      console.error('Download error:', err);
-      if (win && !win.closed) win.close();
-      if (fallbackUrl) {
-        window.location.href = fallbackUrl;
-      } else {
-        alert(err.message || 'Failed to download certificate. Please try again.');
-      }
-    } finally {
-      setDownloadingId(null);
     }
+
+    alert('Certificate file URL is not available yet.');
   };
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -474,7 +444,7 @@ const ApprovedApplications = () => {
                         
                         {app.vahanCertUrl && (
                           <button 
-                            onClick={() => handleDownload(app.id, app.vehicleNo, app.vahanCertUrl)}
+                            onClick={() => handleDownload(app)}
                             disabled={downloadingId === app.id}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
                           >
