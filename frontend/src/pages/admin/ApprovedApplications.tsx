@@ -220,6 +220,9 @@ const ApprovedApplications = () => {
   };
 
   const handleDownload = async (appId: string, vehicleNo: string, fallbackUrl?: string) => {
+    // Open a blank tab synchronously to preserve user gesture context and prevent browser popup blocking
+    const win = window.open('about:blank', '_blank');
+
     try {
       setDownloadingId(appId);
 
@@ -237,31 +240,51 @@ const ApprovedApplications = () => {
           }
         }
       } catch (fetchErr) {
-        console.warn('Backend download endpoint failed, using fallback URL:', fetchErr);
+        console.warn('Backend download endpoint fetch failed, using fallback:', fetchErr);
       }
 
-      // If backend didn't return a downloadUrl, use fallbackUrl directly
+      // Step 2: Fallback to direct URL if backend did not return downloadUrl
       if (!downloadUrl && fallbackUrl) {
         downloadUrl = fallbackUrl;
       }
 
       if (!downloadUrl) {
-        throw new Error('Certificate file URL is not available yet.');
+        if (win) win.close();
+        alert('Certificate file is not available yet.');
+        return;
       }
 
-      // Step 2: Trigger direct browser download/open
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      // Step 3: Try Blob fetch for silent direct download with custom filename
+      try {
+        const fileRes = await fetch(downloadUrl);
+        if (fileRes.ok) {
+          const blob = await fileRes.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          if (win) win.close();
+          return;
+        }
+      } catch (blobErr) {
+        console.warn('Blob download skipped (CORS or network), navigating open window:', blobErr);
+      }
+
+      // Step 4: Fallback to direct navigation of the opened window
+      if (win && !win.closed) {
+        win.location.href = downloadUrl;
+      } else {
+        window.location.href = downloadUrl;
+      }
     } catch (err: any) {
       console.error('Download error:', err);
+      if (win && !win.closed) win.close();
       if (fallbackUrl) {
-        window.open(fallbackUrl, '_blank');
+        window.location.href = fallbackUrl;
       } else {
         alert(err.message || 'Failed to download certificate. Please try again.');
       }
