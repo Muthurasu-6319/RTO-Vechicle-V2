@@ -514,29 +514,51 @@ app.get('/api/stats/admin', async (req, res) => {
 
 // --- APPLICATIONS ROUTES --- //
 
+// Helper to get applications with memory caching (60s TTL)
+async function getApplicationsCached() {
+  const cached = cache.get('all_applications');
+  if (cached) return cached;
+  
+  try {
+    const snapshot = await db.collection('applications').get();
+    const apps = [];
+    snapshot.forEach(doc => {
+      apps.push({ id: doc.id, ...doc.data() });
+    });
+    cache.put('all_applications', apps, 60 * 1000); // 1 minute cache
+    return apps;
+  } catch (error) {
+    console.error('Error fetching applications for cache:', error);
+    return cache.get('all_applications') || [];
+  }
+}
+
 // Check if IMEI, VLD S.No, or Vehicle No already exists
 app.post('/api/applications/check-unique', async (req, res) => {
   try {
     const { imei, vldSerial, vehicleNo } = req.body;
     const result = { imeiExists: false, vldExists: false, vehicleExists: false };
 
+    if (!imei && !vldSerial && !vehicleNo) {
+      return res.json(result);
+    }
+
+    const apps = await getApplicationsCached();
+
     if (imei) {
-      const imeiSnap = await db.collection('applications').where('imei', '==', imei).get();
-      result.imeiExists = !imeiSnap.empty;
+      result.imeiExists = apps.some(a => a.imei === imei);
     }
     if (vldSerial) {
-      const vldSnap = await db.collection('applications').where('vldSerial', '==', vldSerial).get();
-      result.vldExists = !vldSnap.empty;
+      result.vldExists = apps.some(a => a.vldSerial === vldSerial);
     }
     if (vehicleNo) {
-      const vehicleSnap = await db.collection('applications').where('vehicleNo', '==', vehicleNo).get();
-      result.vehicleExists = !vehicleSnap.empty;
+      result.vehicleExists = apps.some(a => (a.vehicleNo || '').toUpperCase() === (vehicleNo || '').toUpperCase());
     }
 
     res.json(result);
   } catch (error) {
     console.error('Error checking uniqueness:', error);
-    res.status(500).json({ error: error.message });
+    res.json({ imeiExists: false, vldExists: false, vehicleExists: false });
   }
 });
 
@@ -544,16 +566,15 @@ app.post('/api/applications/check-unique', async (req, res) => {
 app.post('/api/applications', async (req, res) => {
   try {
     const data = req.body;
-    
+    const apps = await getApplicationsCached();
+
     // Check if IMEI already exists
-    const imeiSnapshot = await db.collection('applications').where('imei', '==', data.imei).get();
-    if (!imeiSnapshot.empty) {
+    if (data.imei && apps.some(a => a.imei === data.imei)) {
       return res.status(400).json({ error: 'This IMEI number has already been registered.' });
     }
 
     // Check if VLD Serial already exists
-    const vldSnapshot = await db.collection('applications').where('vldSerial', '==', data.vldSerial).get();
-    if (!vldSnapshot.empty) {
+    if (data.vldSerial && apps.some(a => a.vldSerial === data.vldSerial)) {
       return res.status(400).json({ error: 'This VLD S.No has already been registered.' });
     }
 
@@ -561,15 +582,20 @@ app.post('/api/applications', async (req, res) => {
     data.createdAt = new Date().toISOString();
     
     const docRef = await db.collection('applications').add(data);
+    cache.del('all_applications'); // Invalidate cache so new app is reflected immediately
     
-    // Trigger Admin Notification
-    await db.collection('notifications').add({
-      userId: 'admin', // send to all admins or a generic admin inbox
-      title: 'New Application Received',
-      message: `A new certificate application has been submitted for vehicle ${data.vehicleNo}.`,
-      read: false,
-      createdAt: new Date().toISOString()
-    });
+    // Trigger Admin Notification (non-blocking so quota/notification error does not break submission)
+    try {
+      await db.collection('notifications').add({
+        userId: 'admin',
+        title: 'New Application Received',
+        message: `A new certificate application has been submitted for vehicle ${data.vehicleNo}.`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    } catch (notifErr) {
+      console.warn('Admin notification creation skipped:', notifErr.message);
+    }
 
     res.status(201).json({ message: 'Application submitted successfully', id: docRef.id });
   } catch (error) {
@@ -582,18 +608,15 @@ app.post('/api/applications', async (req, res) => {
 app.get('/api/applications', async (req, res) => {
   try {
     const { manufacturer, userId } = req.query;
-    const snapshot = await db.collection('applications').get();
-    let applications = [];
-    
-    snapshot.forEach(doc => {
-      const data = doc.data();
+    const allApps = await getApplicationsCached();
+    let applications = allApps.filter(data => {
       if (manufacturer && (data.manufacturer || '').trim().toLowerCase() !== manufacturer.trim().toLowerCase()) {
-        return;
+        return false;
       }
       if (userId && data.userId !== userId) {
-        return;
+        return false;
       }
-      applications.push({ id: doc.id, ...data });
+      return true;
     });
     
     // Sort in memory to avoid composite index requirement
@@ -619,15 +642,18 @@ app.put('/api/applications/:id/approve', async (req, res) => {
       status: 'Installed',
       approvedAt: new Date().toISOString()
     });
+    cache.del('all_applications');
 
     if (appData && appData.userId) {
-      await db.collection('notifications').add({
-        userId: appData.userId,
-        title: 'Application Approved',
-        message: `Your application for vehicle ${appData.vehicleNo || 'Unknown'} has been approved!`,
-        read: false,
-        createdAt: new Date().toISOString()
-      });
+      try {
+        await db.collection('notifications').add({
+          userId: appData.userId,
+          title: 'Application Approved',
+          message: `Your application for vehicle ${appData.vehicleNo || 'Unknown'} has been approved!`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      } catch (e) {}
     }
 
     res.json({ message: 'Application moved to Installed successfully' });
@@ -642,6 +668,7 @@ app.delete('/api/applications/:id', async (req, res) => {
   try {
     const { id } = req.params;
     await db.collection('applications').doc(id).delete();
+    cache.del('all_applications');
     res.json({ message: 'Application deleted successfully' });
   } catch (error) {
     console.error('Error deleting application:', error);
@@ -664,16 +691,19 @@ app.put('/api/applications/:id/temp-cert', async (req, res) => {
       tempCertUrl: tempCertUrl,
       tempCertUploadedAt: new Date().toISOString()
     });
+    cache.del('all_applications');
 
     // Send notification to user
     if (appData && appData.userId) {
-      await db.collection('notifications').add({
-        userId: appData.userId,
-        title: 'Temporary Certificate Ready',
-        message: `Your Temporary Certificate for vehicle ${appData.vehicleNo || 'Unknown'} is ready. Please check your Installed section.`,
-        read: false,
-        createdAt: new Date().toISOString()
-      });
+      try {
+        await db.collection('notifications').add({
+          userId: appData.userId,
+          title: 'Temporary Certificate Ready',
+          message: `Your Temporary Certificate for vehicle ${appData.vehicleNo || 'Unknown'} is ready. Please check your Installed section.`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      } catch (e) {}
     }
 
     res.json({ message: 'Temporary Certificate uploaded successfully' });
@@ -691,6 +721,7 @@ app.put('/api/applications/:id/rto-approve', async (req, res) => {
       status: 'RTOApproved',
       rtoApprovedAt: new Date().toISOString()
     });
+    cache.del('all_applications');
     res.json({ message: 'RTO Approved successfully' });
   } catch (error) {
     console.error('Error RTO approving:', error);
