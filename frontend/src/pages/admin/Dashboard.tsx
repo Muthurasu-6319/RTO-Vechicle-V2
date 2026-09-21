@@ -126,7 +126,7 @@ const Dashboard = () => {
             </div>
             <div>
               <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Certificates Issued</h3>
-              <p style={{ fontSize: '2rem', fontWeight 700, color: 'var(--text-primary)' }}>{stats.certificatesIssued}</p>
+              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.certificatesIssued}</p>
             </div>
           </div>
         </div>
