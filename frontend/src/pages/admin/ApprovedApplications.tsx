@@ -238,55 +238,70 @@ const ApprovedApplications = () => {
     try {
       if (appId) setDownloadingId(appId);
 
-      // Priority 1: Instant direct download if certUrl is present on app object
-      if (certUrl) {
+      // Step 1: Request presigned download URL from backend for vahan certificate
+      if (appId) {
         try {
-          const res = await fetch(certUrl);
+          const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=vahan`);
           if (res.ok) {
-            const blob = await res.blob();
-            const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-            const blobUrl = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-            return;
+            const data = await res.json();
+            if (data.downloadUrl) {
+              try {
+                const fileRes = await fetch(data.downloadUrl);
+                if (fileRes.ok) {
+                  const blob = await fileRes.blob();
+                  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+                  const blobUrl = URL.createObjectURL(pdfBlob);
+                  const a = document.createElement('a');
+                  a.href = blobUrl;
+                  a.download = data.filename || filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                  return;
+                }
+              } catch (blobErr) {
+                console.warn('Direct blob fetch failed, falling back to presigned URL anchor download:', blobErr);
+              }
+
+              // Anchor download using presigned URL
+              const a = document.createElement('a');
+              a.href = data.downloadUrl;
+              a.download = data.filename || filename;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              return;
+            }
           }
-        } catch (corsErr) {
-          console.warn('CORS blob fetch failed, triggering direct link download:', corsErr);
+        } catch (apiErr) {
+          console.warn('download-certificate API error, falling back to proxy:', apiErr);
         }
 
-        // Direct anchor download fallback
+        // Step 2: Fallback to download proxy endpoint
+        const downloadProxyUrl = `${backendUrl}/api/download-proxy?id=${appId}&type=vahan&filename=${encodeURIComponent(filename)}`;
         const a = document.createElement('a');
-        a.href = certUrl;
+        a.href = downloadProxyUrl;
         a.download = filename;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
         document.body.appendChild(a);
         a.click();
         a.remove();
         return;
       }
 
-      // Priority 2: Backend proxy fallback if certUrl is not directly on object
-      if (appId) {
-        const downloadProxyUrl = `${backendUrl}/api/download-proxy?id=${appId}&type=vahan&filename=${encodeURIComponent(filename)}`;
+      // Step 3: Fallback using direct URL via proxy if appId is missing
+      if (certUrl) {
+        const downloadProxyUrl = `${backendUrl}/api/download-proxy?url=${encodeURIComponent(certUrl)}&filename=${encodeURIComponent(filename)}`;
         const a = document.createElement('a');
         a.href = downloadProxyUrl;
         a.download = filename;
-        a.target = '_blank';
         document.body.appendChild(a);
         a.click();
         a.remove();
       }
     } catch (err) {
       console.error('Download error:', err);
-      if (certUrl) {
-        window.open(certUrl, '_blank');
-      }
+      alert('Failed to download certificate. Please try again.');
     } finally {
       setTimeout(() => setDownloadingId(null), 300);
     }

@@ -799,20 +799,24 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
     if (fileUrl && (fileUrl.includes('backblazeb2.com') || (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT)))) {
       try {
         let objectKey = fileUrl;
-        if (b2BucketName && fileUrl.includes(`/${b2BucketName}/`)) {
-          objectKey = fileUrl.substring(fileUrl.indexOf(`/${b2BucketName}/`) + b2BucketName.length + 2);
+        const bucketName = b2BucketName || 'Vlinkportal';
+        
+        if (fileUrl.toLowerCase().includes(`/${bucketName.toLowerCase()}/`)) {
+          const lowerUrl = fileUrl.toLowerCase();
+          const bucketIndex = lowerUrl.indexOf(`/${bucketName.toLowerCase()}/`);
+          objectKey = fileUrl.substring(bucketIndex + bucketName.length + 2);
         } else if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
           const parsed = new URL(fileUrl);
           const parts = parsed.pathname.split('/').filter(Boolean);
           if (parts.length > 1) {
-            objectKey = parts.slice(parts[0] === 'file' ? 2 : 1).join('/');
+            objectKey = parts.slice(parts[0].toLowerCase() === 'file' ? 2 : 1).join('/');
           }
         }
 
         objectKey = decodeURIComponent(objectKey);
 
         const command = new GetObjectCommand({
-          Bucket: b2BucketName,
+          Bucket: bucketName,
           Key: objectKey,
           ResponseContentDisposition: `attachment; filename="${filename}"`
         });
@@ -864,19 +868,22 @@ app.get('/api/download-proxy', async (req, res) => {
     if (fileUrl.includes('backblazeb2.com') || (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT))) {
       try {
         let objectKey = fileUrl;
-        if (b2BucketName && fileUrl.includes(`/${b2BucketName}/`)) {
-          objectKey = fileUrl.substring(fileUrl.indexOf(`/${b2BucketName}/`) + b2BucketName.length + 2);
+        const bucketName = b2BucketName || 'Vlinkportal';
+        if (fileUrl.toLowerCase().includes(`/${bucketName.toLowerCase()}/`)) {
+          const lowerUrl = fileUrl.toLowerCase();
+          const bucketIndex = lowerUrl.indexOf(`/${bucketName.toLowerCase()}/`);
+          objectKey = fileUrl.substring(bucketIndex + bucketName.length + 2);
         } else if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
           const parsed = new URL(fileUrl);
           const parts = parsed.pathname.split('/').filter(Boolean);
           if (parts.length > 1) {
-            objectKey = parts.slice(parts[0] === 'file' ? 2 : 1).join('/');
+            objectKey = parts.slice(parts[0].toLowerCase() === 'file' ? 2 : 1).join('/');
           }
         }
         objectKey = decodeURIComponent(objectKey);
 
         const s3Res = await s3Client.send(new GetObjectCommand({
-          Bucket: b2BucketName,
+          Bucket: bucketName,
           Key: objectKey
         }));
         const bytes = await s3Res.Body.transformToByteArray();
