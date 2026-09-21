@@ -833,6 +833,34 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
   }
 });
 
+// Direct Download Proxy Endpoint (forces Content-Disposition: attachment for native browser downloads)
+app.get('/api/download-proxy', async (req, res) => {
+  try {
+    const fileUrl = req.query.url;
+    const filename = req.query.filename || 'Certificate.pdf';
+
+    if (!fileUrl) {
+      return res.status(400).json({ error: 'URL parameter is required' });
+    }
+
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch file from source' });
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error in download proxy:', error.message);
+    res.status(500).json({ error: 'Failed to download file', details: error.message });
+  }
+});
+
 // --- SETTINGS ROUTES --- //
 
 // Get Settings (Manufacturers & RTO Offices)

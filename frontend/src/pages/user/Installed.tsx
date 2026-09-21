@@ -47,40 +47,64 @@ const Installed = () => {
   const handleDownload = async (app: any) => {
     const certUrl = getCertUrl(app);
     const vehicleNo = (app?.vehicleNo || 'Document').toUpperCase();
+    const filename = `${vehicleNo}_Temp_Certificate.pdf`;
     const appId = app?.id;
 
-    // Direct Browser Open (100% synchronous with click gesture - bypasses popup blocker & CORS)
-    if (certUrl) {
-      const windowRef = window.open(certUrl, '_blank', 'noopener,noreferrer');
-      if (!windowRef) {
-        window.location.href = certUrl;
-      }
+    if (!certUrl && !appId) {
+      alert('Certificate file URL is not available yet.');
       return;
     }
 
-    // Fallback: Try backend download endpoint if certUrl is not directly on object
-    if (appId) {
-      try {
-        setDownloadingId(appId);
-        const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=temp`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.downloadUrl) {
-            const windowRef = window.open(data.downloadUrl, '_blank', 'noopener,noreferrer');
-            if (!windowRef) {
-              window.location.href = data.downloadUrl;
-            }
+    try {
+      if (appId) setDownloadingId(appId);
+
+      // Method 1: Direct Blob Download (saves file directly into browser download manager)
+      if (certUrl) {
+        try {
+          const fileRes = await fetch(certUrl);
+          if (fileRes.ok) {
+            const blob = await fileRes.blob();
+            const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(pdfBlob);
+
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
             return;
           }
+        } catch (blobErr) {
+          console.warn('Direct blob fetch failed (CORS), trying backend attachment proxy:', blobErr);
         }
-      } catch (e) {
-        console.warn('Backend download endpoint fetch failed:', e);
-      } finally {
-        setDownloadingId(null);
       }
-    }
 
-    alert('Certificate file URL is not available yet.');
+      // Method 2: Backend Attachment Proxy (forces Content-Disposition: attachment)
+      const targetUrl = certUrl || `${backendUrl}/api/applications/${appId}/download-certificate?type=temp`;
+      const proxyDownloadUrl = `${backendUrl}/api/download-proxy?url=${encodeURIComponent(targetUrl)}&filename=${encodeURIComponent(filename)}`;
+
+      const a = document.createElement('a');
+      a.href = proxyDownloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+    } catch (err: any) {
+      console.error('Download error:', err);
+      if (certUrl) {
+        const a = document.createElement('a');
+        a.href = certUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } finally {
+      if (appId) setDownloadingId(null);
+    }
   };
 
   const getStatusBadge = (status: string) => {
