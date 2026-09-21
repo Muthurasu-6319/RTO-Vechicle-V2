@@ -517,20 +517,19 @@ app.get('/api/stats/admin', async (req, res) => {
 // Helper to get applications with memory caching (60s TTL)
 async function getApplicationsCached() {
   const cached = cache.get('all_applications');
-  if (cached) return cached;
-  
-  try {
-    const snapshot = await db.collection('applications').get();
-    const apps = [];
-    snapshot.forEach(doc => {
-      apps.push({ id: doc.id, ...doc.data() });
-    });
-    cache.put('all_applications', apps, 60 * 1000); // 1 minute cache
-    return apps;
-  } catch (error) {
-    console.error('Error fetching applications for cache:', error);
-    return cache.get('all_applications') || [];
+  if (cached && Array.isArray(cached) && cached.length > 0) {
+    return cached;
   }
+  
+  const snapshot = await db.collection('applications').get();
+  const apps = [];
+  snapshot.forEach(doc => {
+    apps.push({ id: doc.id, ...doc.data() });
+  });
+  if (apps.length > 0) {
+    cache.put('all_applications', apps, 60 * 1000); // 1 minute cache
+  }
+  return apps;
 }
 
 // Check if IMEI, VLD S.No, or Vehicle No already exists
@@ -543,7 +542,12 @@ app.post('/api/applications/check-unique', async (req, res) => {
       return res.json(result);
     }
 
-    const apps = await getApplicationsCached();
+    let apps = [];
+    try {
+      apps = await getApplicationsCached();
+    } catch (e) {
+      console.warn('Uniqueness check DB warning:', e.message);
+    }
 
     if (imei) {
       result.imeiExists = apps.some(a => a.imei === imei);
@@ -566,7 +570,12 @@ app.post('/api/applications/check-unique', async (req, res) => {
 app.post('/api/applications', async (req, res) => {
   try {
     const data = req.body;
-    const apps = await getApplicationsCached();
+    let apps = [];
+    try {
+      apps = await getApplicationsCached();
+    } catch (e) {
+      console.warn('DB cache fetch warning during app creation:', e.message);
+    }
 
     // Check if IMEI already exists
     if (data.imei && apps.some(a => a.imei === data.imei)) {
