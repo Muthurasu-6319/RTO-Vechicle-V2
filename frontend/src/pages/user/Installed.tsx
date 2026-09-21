@@ -45,20 +45,40 @@ const Installed = () => {
   };
 
   const handleDownload = async (app: any) => {
-    const certUrl = getCertUrl(app);
+    const appId = app?.id;
     const vehicleNo = (app?.vehicleNo || 'Document').toUpperCase();
     const filename = `${vehicleNo}_Temp_Certificate.pdf`;
-    const appId = app?.id;
-
-    if (!certUrl && !appId) {
-      alert('Certificate file URL is not available yet.');
-      return;
-    }
+    const certUrl = getCertUrl(app);
 
     try {
       if (appId) setDownloadingId(appId);
 
-      // Method 1: Direct Blob Download (saves file directly into browser download manager)
+      // Method 1: Fetch binary PDF via backend download-proxy using Application ID
+      const downloadProxyUrl = appId
+        ? `${backendUrl}/api/download-proxy?id=${appId}&type=temp&filename=${encodeURIComponent(filename)}`
+        : `${backendUrl}/api/download-proxy?url=${encodeURIComponent(certUrl)}&filename=${encodeURIComponent(filename)}`;
+
+      try {
+        const proxyRes = await fetch(downloadProxyUrl);
+        if (proxyRes.ok) {
+          const blob = await proxyRes.blob();
+          const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+          const blobUrl = URL.createObjectURL(pdfBlob);
+
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          return;
+        }
+      } catch (proxyErr) {
+        console.warn('Proxy blob download error, trying direct blob fetch:', proxyErr);
+      }
+
+      // Method 2: Direct Blob fetch from certUrl if available
       if (certUrl) {
         try {
           const fileRes = await fetch(certUrl);
@@ -77,30 +97,21 @@ const Installed = () => {
             return;
           }
         } catch (blobErr) {
-          console.warn('Direct blob fetch failed (CORS), trying backend attachment proxy:', blobErr);
+          console.warn('Direct blob fetch failed:', blobErr);
         }
       }
 
-      // Method 2: Backend Attachment Proxy (forces Content-Disposition: attachment)
-      const targetUrl = certUrl || `${backendUrl}/api/applications/${appId}/download-certificate?type=temp`;
-      const proxyDownloadUrl = `${backendUrl}/api/download-proxy?url=${encodeURIComponent(targetUrl)}&filename=${encodeURIComponent(filename)}`;
+      // Method 3: Invisible IFrame fallback (never replaces current page window!)
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = downloadProxyUrl;
+      document.body.appendChild(iframe);
+      setTimeout(() => iframe.remove(), 60000);
 
-      const a = document.createElement('a');
-      a.href = proxyDownloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
-    } catch (err: any) {
+    } catch (err) {
       console.error('Download error:', err);
       if (certUrl) {
-        const a = document.createElement('a');
-        a.href = certUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        window.open(certUrl, '_blank');
       }
     } finally {
       if (appId) setDownloadingId(null);

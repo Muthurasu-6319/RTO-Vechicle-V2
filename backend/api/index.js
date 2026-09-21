@@ -836,23 +836,76 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 // Direct Download Proxy Endpoint (forces Content-Disposition: attachment for native browser downloads)
 app.get('/api/download-proxy', async (req, res) => {
   try {
-    const fileUrl = req.query.url;
-    const filename = req.query.filename || 'Certificate.pdf';
+    const { id, type, url: inputUrl, filename: inputFilename } = req.query;
+    let fileUrl = inputUrl;
+    let filename = inputFilename || 'Certificate.pdf';
+
+    // 1. If application ID is provided, look up in Firestore directly
+    if (id) {
+      const docSnap = await db.collection('applications').doc(id).get();
+      if (docSnap.exists) {
+        const appData = docSnap.data();
+        fileUrl = type === 'temp' ? appData.tempCertUrl : appData.vahanCertUrl;
+        const vehicleNoUpper = (appData.vehicleNo || 'Document').toUpperCase();
+        const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
+        if (!inputFilename) {
+          filename = `${vehicleNoUpper}_${certType}.pdf`;
+        }
+      }
+    }
 
     if (!fileUrl) {
-      return res.status(400).json({ error: 'URL parameter is required' });
+      return res.status(404).json({ error: 'Certificate file URL is missing or application not found' });
     }
 
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Failed to fetch file from source' });
+    let buffer = null;
+
+    // 2. Try fetching from B2 S3 if B2 credentials exist and URL is B2
+    if (fileUrl.includes('backblazeb2.com') || (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT))) {
+      try {
+        let objectKey = fileUrl;
+        if (b2BucketName && fileUrl.includes(`/${b2BucketName}/`)) {
+          objectKey = fileUrl.substring(fileUrl.indexOf(`/${b2BucketName}/`) + b2BucketName.length + 2);
+        } else if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+          const parsed = new URL(fileUrl);
+          const parts = parsed.pathname.split('/').filter(Boolean);
+          if (parts.length > 1) {
+            objectKey = parts.slice(parts[0] === 'file' ? 2 : 1).join('/');
+          }
+        }
+        objectKey = decodeURIComponent(objectKey);
+
+        const s3Res = await s3Client.send(new GetObjectCommand({
+          Bucket: b2BucketName,
+          Key: objectKey
+        }));
+        const bytes = await s3Res.Body.transformToByteArray();
+        buffer = Buffer.from(bytes);
+      } catch (s3Err) {
+        console.warn('S3 GetObject failed in proxy, falling back to direct fetch:', s3Err.message);
+      }
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // 3. Fallback to standard HTTP fetch if buffer not loaded via S3
+    if (!buffer) {
+      const response = await fetch(fileUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
 
+      if (!response.ok) {
+        console.error(`Download proxy fetch error (${response.status}): ${fileUrl}`);
+        return res.status(response.status).json({ error: 'Failed to fetch file from source', status: response.status });
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    }
+
+    // 4. Send binary PDF buffer with Content-Disposition: attachment header
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
     res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
   } catch (error) {
