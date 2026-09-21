@@ -20,9 +20,22 @@ const Certificates = () => {
   const fetchApplications = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
+    const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+    const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+    const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
+    const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+    const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
+
+    const matchesManufacturer = (appManu: string) => {
+      if (isStandard) {
+        if (!adminManufacturer) return false;
+        return (appManu || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase();
+      }
+      return true;
+    };
+
     try {
-      const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
-      const url = adminManufacturer 
+      const url = (isStandard && adminManufacturer) 
         ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
         : `${backendUrl}/api/applications`;
       const [res, usersRes] = await Promise.all([
@@ -34,7 +47,7 @@ const Certificates = () => {
         if (Array.isArray(data)) {
           const filtered = data.filter((app: any) => 
             ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
-            (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
+            matchesManufacturer(app.manufacturer)
           );
           setApplications(filtered);
           fetchedFromBackend = true;
@@ -52,7 +65,6 @@ const Certificates = () => {
 
     if (!fetchedFromBackend && db) {
       try {
-        const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
         const [appsSnap, usersSnap] = await Promise.all([
           getDocs(collection(db, 'applications')),
           getDocs(collection(db, 'users'))
@@ -60,7 +72,7 @@ const Certificates = () => {
         const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const filteredApps = allApps.filter((app: any) => 
           ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
-          (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
+          matchesManufacturer(app.manufacturer)
         );
         filteredApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setApplications(filteredApps);

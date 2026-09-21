@@ -20,9 +20,22 @@ const Applications = () => {
   const fetchApplications = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
+    const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+    const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+    const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
+    const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+    const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
+
+    const matchesManufacturer = (appManu: string) => {
+      if (isStandard) {
+        if (!adminManufacturer) return false;
+        return (appManu || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase();
+      }
+      return true;
+    };
+
     try {
-      const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
-      const url = adminManufacturer 
+      const url = (isStandard && adminManufacturer) 
         ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
         : `${backendUrl}/api/applications`;
       const [appsRes, usersRes] = await Promise.all([
@@ -33,8 +46,7 @@ const Applications = () => {
         const data = await appsRes.json();
         if (Array.isArray(data)) {
           const pendingApps = data.filter((app: any) => 
-            app.status === 'Pending' &&
-            (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
+            app.status === 'Pending' && matchesManufacturer(app.manufacturer)
           );
           setApplications(pendingApps);
           fetchedFromBackend = true;
@@ -53,15 +65,13 @@ const Applications = () => {
     // Fallback: Fetch directly from client-side Firestore
     if (!fetchedFromBackend && db) {
       try {
-        const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
         const [appsSnap, usersSnap] = await Promise.all([
           getDocs(collection(db, 'applications')),
           getDocs(collection(db, 'users'))
         ]);
         const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const pendingApps = allApps.filter((app: any) => 
-          app.status === 'Pending' &&
-          (!adminManufacturer || (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase())
+          app.status === 'Pending' && matchesManufacturer(app.manufacturer)
         );
         pendingApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setApplications(pendingApps);

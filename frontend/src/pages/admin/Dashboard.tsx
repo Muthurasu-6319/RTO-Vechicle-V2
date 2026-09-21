@@ -17,7 +17,7 @@ const Dashboard = () => {
 
   const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
   const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
-  const adminManufacturer = sessionStorage.getItem('adminManufacturer') || (!sessionStorage.getItem('adminToken') ? localStorage.getItem('adminManufacturer') : '');
+  const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
   const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
   const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
 
@@ -97,36 +97,36 @@ const Dashboard = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-          {/* 1. Applications Count */}
+          {/* 1. Pending Applications Count (Matches /admin/applications) */}
           <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div style={{ padding: '1.125rem', backgroundColor: '#fee2e2', color: '#ef4444', borderRadius: '0.875rem' }}>
               <FileText size={32} />
             </div>
             <div>
-              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Applications</h3>
-              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.applications}</p>
+              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Pending Applications</h3>
+              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.pendingReview}</p>
             </div>
           </div>
 
-          {/* 2. Certificates Issued Count */}
+          {/* 2. Installed Devices Count (Matches /admin/certificates) */}
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div style={{ padding: '1.125rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '0.875rem' }}>
+              <Wrench size={32} />
+            </div>
+            <div>
+              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Installed Devices</h3>
+              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.installed}</p>
+            </div>
+          </div>
+
+          {/* 3. Certificates Issued Count (Matches /admin/approved) */}
           <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div style={{ padding: '1.125rem', backgroundColor: '#d1fae5', color: '#10b981', borderRadius: '0.875rem' }}>
               <CheckCircle size={32} />
             </div>
             <div>
               <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Certificates Issued</h3>
-              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.certificatesIssued}</p>
-            </div>
-          </div>
-
-          {/* 3. Installed Count */}
-          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <div style={{ padding: '1.125rem', backgroundColor: '#dbeafe', color: '#2563eb', borderRadius: '0.875rem' }}>
-              <Wrench size={32} />
-            </div>
-            <div>
-              <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>Installed</h3>
-              <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.installed}</p>
+              <p style={{ fontSize: '2rem', fontWeight 700, color: 'var(--text-primary)' }}>{stats.certificatesIssued}</p>
             </div>
           </div>
         </div>

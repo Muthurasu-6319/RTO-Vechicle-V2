@@ -796,7 +796,7 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 
 
     // Check if it's a B2 URL
-    if (fileUrl.includes(process.env.B2_ENDPOINT)) {
+    if (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT)) {
       // Extract the object key from the B2 URL
       // URL format: process.env.B2_ENDPOINT/bucketName/objectKey
       const prefix = `${process.env.B2_ENDPOINT}/${b2BucketName}/`;

@@ -44,30 +44,27 @@ const Installed = () => {
 
       // Step 1: Get signed URL from backend
       const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=temp`);
-      if (!res.ok) throw new Error('Could not get download URL');
-      const { downloadUrl, filename } = await res.json();
-
-      // Step 2: Browser fetches directly from Cloudinary (bypasses server-side restrictions)
-      try {
-        const fileRes = await fetch(downloadUrl);
-        if (!fileRes.ok) throw new Error('Direct fetch failed');
-
-        const blob = await fileRes.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename || `${vehicleNo.toUpperCase()}_Temp_Certificate.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(blobUrl);
-      } catch {
-        // Fallback: open in new tab if blob download fails
-        window.open(downloadUrl, '_blank');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Certificate file is not available yet.');
       }
-    } catch (err) {
+      const { downloadUrl, filename } = await res.json();
+      if (!downloadUrl) {
+        throw new Error('Certificate file URL is not available yet.');
+      }
+
+      // Step 2: Trigger direct browser download/open without CORS or popup blocking issues
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.download = filename || `${vehicleNo.toUpperCase()}_Temp_Certificate.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err: any) {
       console.error('Download error:', err);
-      alert('Failed to download certificate. Please try again.');
+      alert(err.message || 'Failed to download certificate. Please try again.');
     } finally {
       setDownloadingId(null);
     }
