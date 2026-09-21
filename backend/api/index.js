@@ -774,26 +774,40 @@ app.put('/api/applications/:id/vahan-cert', async (req, res) => {
 app.get('/api/applications/:id/download-certificate', async (req, res) => {
   try {
     const { id } = req.params;
-    const { type } = req.query;
+    const { type, url: inputUrl } = req.query;
 
-    const docRef = db.collection('applications').doc(id);
-    const docSnap = await docRef.get();
+    let fileUrl = (inputUrl && inputUrl !== 'undefined') ? inputUrl : null;
+    let filename = `Certificate_${type || 'document'}.pdf`;
 
-    if (!docSnap.exists) {
-      return res.status(404).json({ error: 'Application not found' });
+    if (id && (!fileUrl || fileUrl === 'undefined')) {
+      try {
+        const docRef = db.collection('applications').doc(id);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          const appData = docSnap.data();
+          fileUrl = type === 'temp' ? appData.tempCertUrl : appData.vahanCertUrl;
+          const vehicleNoUpper = (appData.vehicleNo || 'Document').toUpperCase();
+          const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
+          filename = `${vehicleNoUpper}_${certType}.pdf`;
+        }
+      } catch (dbErr) {
+        console.warn('Firestore doc lookup failed in download-certificate, checking cache:', dbErr.message);
+        try {
+          const cachedApps = await getApplicationsCached();
+          const cachedApp = cachedApps.find(a => a.id === id);
+          if (cachedApp) {
+            fileUrl = type === 'temp' ? cachedApp.tempCertUrl : cachedApp.vahanCertUrl;
+            const vehicleNoUpper = (cachedApp.vehicleNo || 'Document').toUpperCase();
+            const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
+            filename = `${vehicleNoUpper}_${certType}.pdf`;
+          }
+        } catch (cErr) {}
+      }
     }
 
-    const appData = docSnap.data();
-
-    const fileUrl = type === 'temp' ? appData.tempCertUrl : appData.vahanCertUrl;
-    const vehicleNoUpper = (appData.vehicleNo || 'Document').toUpperCase();
-    const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
-    const filename = `${vehicleNoUpper}_${certType}.pdf`;
-
-    if (!fileUrl) {
+    if (!fileUrl || fileUrl === 'undefined') {
       return res.status(404).json({ error: 'Certificate not available' });
     }
-
 
     // Check if it's a B2 URL
     if (fileUrl && (fileUrl.includes('backblazeb2.com') || (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT)))) {
@@ -841,24 +855,40 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 app.get('/api/download-proxy', async (req, res) => {
   try {
     const { id, type, url: inputUrl, filename: inputFilename } = req.query;
-    let fileUrl = inputUrl;
+    let fileUrl = (inputUrl && inputUrl !== 'undefined') ? inputUrl : null;
     let filename = inputFilename || 'Certificate.pdf';
 
-    // 1. If application ID is provided, look up in Firestore directly
-    if (id) {
-      const docSnap = await db.collection('applications').doc(id).get();
-      if (docSnap.exists) {
-        const appData = docSnap.data();
-        fileUrl = type === 'temp' ? appData.tempCertUrl : appData.vahanCertUrl;
-        const vehicleNoUpper = (appData.vehicleNo || 'Document').toUpperCase();
-        const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
-        if (!inputFilename) {
-          filename = `${vehicleNoUpper}_${certType}.pdf`;
+    // 1. If application ID is provided and fileUrl missing, try Firestore lookup with cache fallback
+    if (!fileUrl && id) {
+      try {
+        const docSnap = await db.collection('applications').doc(id).get();
+        if (docSnap.exists) {
+          const appData = docSnap.data();
+          fileUrl = type === 'temp' ? appData.tempCertUrl : appData.vahanCertUrl;
+          const vehicleNoUpper = (appData.vehicleNo || 'Document').toUpperCase();
+          const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
+          if (!inputFilename) {
+            filename = `${vehicleNoUpper}_${certType}.pdf`;
+          }
         }
+      } catch (dbErr) {
+        console.warn('Firestore lookup failed in download-proxy, checking cached applications:', dbErr.message);
+        try {
+          const cachedApps = await getApplicationsCached();
+          const cachedApp = cachedApps.find(a => a.id === id);
+          if (cachedApp) {
+            fileUrl = type === 'temp' ? cachedApp.tempCertUrl : cachedApp.vahanCertUrl;
+            const vehicleNoUpper = (cachedApp.vehicleNo || 'Document').toUpperCase();
+            const certType = type === 'temp' ? 'Temp_Certificate' : 'Vahan_Certificate';
+            if (!inputFilename) {
+              filename = `${vehicleNoUpper}_${certType}.pdf`;
+            }
+          }
+        } catch (cErr) {}
       }
     }
 
-    if (!fileUrl) {
+    if (!fileUrl || fileUrl === 'undefined') {
       return res.status(404).json({ error: 'Certificate file URL is missing or application not found' });
     }
 

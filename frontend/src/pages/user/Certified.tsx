@@ -50,67 +50,59 @@ const Certified = () => {
     try {
       if (appId) setDownloadingId(appId);
 
+      const urlQuery = certUrl ? `&url=${encodeURIComponent(certUrl)}` : '';
+
       // Step 1: Request presigned download URL from backend
-      if (appId) {
-        try {
-          const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=vahan`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.downloadUrl) {
-              try {
-                const fileRes = await fetch(data.downloadUrl);
-                if (fileRes.ok) {
-                  const blob = await fileRes.blob();
-                  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-                  const blobUrl = URL.createObjectURL(pdfBlob);
-                  const a = document.createElement('a');
-                  a.href = blobUrl;
-                  a.download = data.filename || filename;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-                  return;
-                }
-              } catch (blobErr) {
-                console.warn('Direct blob fetch failed, falling back to presigned URL anchor download:', blobErr);
+      try {
+        const reqUrl = appId 
+          ? `${backendUrl}/api/applications/${appId}/download-certificate?type=vahan${urlQuery}`
+          : `${backendUrl}/api/applications/download-certificate?type=vahan${urlQuery}`;
+        const res = await fetch(reqUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.downloadUrl) {
+            try {
+              const fileRes = await fetch(data.downloadUrl);
+              if (fileRes.ok) {
+                const blob = await fileRes.blob();
+                const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = data.filename || filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                return;
               }
-
-              // Anchor download using presigned URL (contains X-Amz-Signature and ResponseContentDisposition)
-              const a = document.createElement('a');
-              a.href = data.downloadUrl;
-              a.download = data.filename || filename;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              return;
+            } catch (blobErr) {
+              console.warn('Direct blob fetch failed, falling back to presigned URL anchor download:', blobErr);
             }
+
+            // Anchor download using presigned URL
+            const a = document.createElement('a');
+            a.href = data.downloadUrl;
+            a.download = data.filename || filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            return;
           }
-        } catch (apiErr) {
-          console.warn('download-certificate API error, falling back to proxy:', apiErr);
         }
-
-        // Step 2: Fallback to download proxy endpoint
-        const downloadProxyUrl = `${backendUrl}/api/download-proxy?id=${appId}&type=vahan&filename=${encodeURIComponent(filename)}`;
-        const a = document.createElement('a');
-        a.href = downloadProxyUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        return;
+      } catch (apiErr) {
+        console.warn('download-certificate API error, falling back to proxy:', apiErr);
       }
 
-      // Step 3: Fallback using direct URL via proxy if appId is missing
-      if (certUrl) {
-        const downloadProxyUrl = `${backendUrl}/api/download-proxy?url=${encodeURIComponent(certUrl)}&filename=${encodeURIComponent(filename)}`;
-        const a = document.createElement('a');
-        a.href = downloadProxyUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
+      // Step 2: Fallback to download proxy endpoint
+      const proxyId = appId ? `id=${appId}&` : '';
+      const downloadProxyUrl = `${backendUrl}/api/download-proxy?${proxyId}type=vahan&filename=${encodeURIComponent(filename)}${urlQuery}`;
+      const a = document.createElement('a');
+      a.href = downloadProxyUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (err) {
       console.error('Download error:', err);
       alert('Failed to download certificate. Please try again.');
