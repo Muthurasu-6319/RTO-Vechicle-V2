@@ -796,22 +796,35 @@ app.get('/api/applications/:id/download-certificate', async (req, res) => {
 
 
     // Check if it's a B2 URL
-    if (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT)) {
-      // Extract the object key from the B2 URL
-      // URL format: process.env.B2_ENDPOINT/bucketName/objectKey
-      const prefix = `${process.env.B2_ENDPOINT}/${b2BucketName}/`;
-      let objectKey = fileUrl.replace(prefix, '');
-      
-      const command = new GetObjectCommand({
-        Bucket: b2BucketName,
-        Key: objectKey,
-        ResponseContentDisposition: `attachment; filename="${filename}"`
-      });
-      const downloadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-      return res.json({ downloadUrl, filename });
+    if (fileUrl && (fileUrl.includes('backblazeb2.com') || (process.env.B2_ENDPOINT && fileUrl.includes(process.env.B2_ENDPOINT)))) {
+      try {
+        let objectKey = fileUrl;
+        if (b2BucketName && fileUrl.includes(`/${b2BucketName}/`)) {
+          objectKey = fileUrl.substring(fileUrl.indexOf(`/${b2BucketName}/`) + b2BucketName.length + 2);
+        } else if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+          const parsed = new URL(fileUrl);
+          const parts = parsed.pathname.split('/').filter(Boolean);
+          if (parts.length > 1) {
+            objectKey = parts.slice(parts[0] === 'file' ? 2 : 1).join('/');
+          }
+        }
+
+        objectKey = decodeURIComponent(objectKey);
+
+        const command = new GetObjectCommand({
+          Bucket: b2BucketName,
+          Key: objectKey,
+          ResponseContentDisposition: `attachment; filename="${filename}"`
+        });
+        const downloadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        return res.json({ downloadUrl, filename });
+      } catch (b2Err) {
+        console.warn('Error generating B2 signed URL, falling back to direct fileUrl:', b2Err.message);
+        return res.json({ downloadUrl: fileUrl, filename });
+      }
     }
 
-    // Fallback: return original URL (e.g., old Cloudinary URLs)
+    // Fallback: return original URL (e.g., old Cloudinary or direct URLs)
     res.json({ downloadUrl: fileUrl, filename });
 
   } catch (error) {

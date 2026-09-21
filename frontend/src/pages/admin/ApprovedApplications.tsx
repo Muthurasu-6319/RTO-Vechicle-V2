@@ -219,33 +219,52 @@ const ApprovedApplications = () => {
     }
   };
 
-  const handleDownload = async (appId: string, vehicleNo: string) => {
+  const handleDownload = async (appId: string, vehicleNo: string, fallbackUrl?: string) => {
     try {
       setDownloadingId(appId);
 
-      // Step 1: Get signed URL from backend
-      const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=vahan`);
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Certificate file is not available yet.');
+      let downloadUrl = '';
+      let filename = `${(vehicleNo || 'Document').toUpperCase()}_Vahan_Certificate.pdf`;
+
+      // Step 1: Try getting signed URL from backend
+      try {
+        const res = await fetch(`${backendUrl}/api/applications/${appId}/download-certificate?type=vahan`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.downloadUrl) {
+            downloadUrl = data.downloadUrl;
+            if (data.filename) filename = data.filename;
+          }
+        }
+      } catch (fetchErr) {
+        console.warn('Backend download endpoint failed, using fallback URL:', fetchErr);
       }
-      const { downloadUrl, filename } = await res.json();
+
+      // If backend didn't return a downloadUrl, use fallbackUrl directly
+      if (!downloadUrl && fallbackUrl) {
+        downloadUrl = fallbackUrl;
+      }
+
       if (!downloadUrl) {
         throw new Error('Certificate file URL is not available yet.');
       }
 
-      // Step 2: Trigger direct browser download/open without CORS or popup blocking issues
+      // Step 2: Trigger direct browser download/open
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.download = filename || `${(vehicleNo || '').toUpperCase()}_Vahan_Certificate.pdf`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
     } catch (err: any) {
       console.error('Download error:', err);
-      alert(err.message || 'Failed to download certificate. Please try again.');
+      if (fallbackUrl) {
+        window.open(fallbackUrl, '_blank');
+      } else {
+        alert(err.message || 'Failed to download certificate. Please try again.');
+      }
     } finally {
       setDownloadingId(null);
     }
@@ -432,7 +451,7 @@ const ApprovedApplications = () => {
                         
                         {app.vahanCertUrl && (
                           <button 
-                            onClick={() => handleDownload(app.id, app.vehicleNo)}
+                            onClick={() => handleDownload(app.id, app.vehicleNo, app.vahanCertUrl)}
                             disabled={downloadingId === app.id}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: downloadingId === app.id ? '#e2e8f0' : '#10b981', color: downloadingId === app.id ? '#64748b' : 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: downloadingId === app.id ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
                           >
