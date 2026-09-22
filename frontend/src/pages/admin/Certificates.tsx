@@ -37,6 +37,24 @@ const Certificates = () => {
       return true;
     };
 
+    const sortInstalledApps = (apps: any[]) => {
+      const getPriority = (status: string) => {
+        if (status === 'Installed') return 1;          // 1st Priority: Needs Temp Cert Upload
+        if (status === 'RTOApproved') return 2;        // 2nd Priority: Needs Vahan Cert Upload
+        if (status === 'TempCertUploaded') return 3;   // 3rd Priority: Waiting for User Approval
+        return 4;
+      };
+
+      return [...apps].sort((a: any, b: any) => {
+        const pA = getPriority(a.status);
+        const pB = getPriority(b.status);
+        if (pA !== pB) {
+          return pA - pB;
+        }
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      });
+    };
+
     try {
       const url = (isStandard && adminManufacturer) 
         ? `${backendUrl}/api/applications?manufacturer=${encodeURIComponent(adminManufacturer)}`
@@ -52,7 +70,7 @@ const Certificates = () => {
             ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
             matchesManufacturer(app.manufacturer)
           );
-          setApplications(filtered);
+          setApplications(sortInstalledApps(filtered));
           fetchedFromBackend = true;
         }
       }
@@ -77,8 +95,7 @@ const Certificates = () => {
           ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status) &&
           matchesManufacturer(app.manufacturer)
         );
-        filteredApps.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        setApplications(filteredApps);
+        setApplications(sortInstalledApps(filteredApps));
         setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (e) {
         console.error('Firestore fallback failed:', e);
