@@ -16,6 +16,7 @@ const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   
   const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -40,10 +41,11 @@ const UserManagement = () => {
     try {
       let fetchedFromBackend = false;
       try {
-        const [res, ordersRes, subsRes] = await Promise.all([
+        const [res, ordersRes, subsRes, appsRes] = await Promise.all([
           fetch(`${backendUrl}/api/users`),
           fetch(`${backendUrl}/api/orders`),
-          fetch(`${backendUrl}/api/subscriptions`)
+          fetch(`${backendUrl}/api/subscriptions`),
+          fetch(`${backendUrl}/api/applications`)
         ]);
         if (res.ok) {
           const data = await res.json();
@@ -58,22 +60,28 @@ const UserManagement = () => {
           const subsData = await subsRes.json();
           if (Array.isArray(subsData)) setSubscriptions(subsData);
         }
+        if (appsRes.ok) {
+          const appsData = await appsRes.json();
+          if (Array.isArray(appsData)) setApplications(appsData);
+        }
       } catch (e) {
         console.warn('Backend fetchUsers failed, falling back to Firestore Web SDK', e);
       }
 
       // Fallback: Fetch directly from client-side Firestore
       if (!fetchedFromBackend && db) {
-        const [usersSnap, ordersSnap, subsSnap] = await Promise.all([
+        const [usersSnap, ordersSnap, subsSnap, appsSnap] = await Promise.all([
           getDocs(collection(db, 'users')),
           getDocs(collection(db, 'orders')),
-          getDocs(collection(db, 'subscriptions'))
+          getDocs(collection(db, 'subscriptions')),
+          getDocs(collection(db, 'applications'))
         ]);
         const firestoreUsers = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
         firestoreUsers.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setUsers(firestoreUsers);
         setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         setSubscriptions(subsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setApplications(appsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -85,13 +93,17 @@ const UserManagement = () => {
   const getUserStockCount = (u: any) => {
     if (!u) return 0;
     const userOrders = orders.filter(o => o.userId === u.id || o.userId === u.uid || (u.email && o.userEmail === u.email));
-    return userOrders.reduce((sum, o) => sum + Number(o.quantity || 0), 0);
+    const totalStock = userOrders.reduce((sum, o) => sum + Number(o.quantity || 0), 0);
+    const usedApps = applications.filter(a => a.userId === u.id || a.userId === u.uid || (u.email && a.userEmail === u.email)).length;
+    return Math.max(0, totalStock - usedApps);
   };
 
   const getUserSubCount = (u: any) => {
     if (!u) return 0;
     const userSubs = subscriptions.filter(s => s.userId === u.id || s.userId === u.uid || (u.email && s.userEmail === u.email));
-    return userSubs.reduce((sum, s) => sum + Number(s.subscriptionCount || 0), 0);
+    const totalSubs = userSubs.reduce((sum, s) => sum + Number(s.subscriptionCount || 0), 0);
+    const used2YearApps = applications.filter(a => (a.userId === u.id || a.userId === u.uid || (u.email && a.userEmail === u.email)) && (a.validity || '').trim() === '2 Years').length;
+    return Math.max(0, totalSubs - used2YearApps);
   };
 
   useEffect(() => {
