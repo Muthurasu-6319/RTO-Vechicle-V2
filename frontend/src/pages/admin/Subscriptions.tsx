@@ -331,7 +331,7 @@ const Subscriptions = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Date</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Invoice</th>
                   <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>Status</th>
-                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>Actions</th>
+                  {isSuperAdmin && <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -365,15 +365,15 @@ const Subscriptions = () => {
                         <span style={{ backgroundColor: '#fef3c7', color: '#d97706', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600 }}>Pending</span>
                       )}
                     </td>
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        {isSuperAdmin && (
+                    {isSuperAdmin && (
+                      <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                           <button onClick={() => handleDelete(sub)} title="Delete" style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                             <Trash2 size={16} />
                           </button>
-                        )}
-                      </div>
-                    </td>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -471,7 +471,7 @@ const PurchaseEntry = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Quantity</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Invoice No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Remarks</th>
-                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>Actions</th>
+                  {isSuperAdmin && <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -486,8 +486,8 @@ const PurchaseEntry = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.invoiceNo || '-'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.remarks || '-'}</td>
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
-                      {isSuperAdmin && (
+                    {isSuperAdmin && (
+                      <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
                         <button
                           onClick={() => handleDelete(entry.id)}
                           title="Delete Entry"
@@ -495,8 +495,8 @@ const PurchaseEntry = () => {
                         >
                           <Trash2 size={16} />
                         </button>
-                      )}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

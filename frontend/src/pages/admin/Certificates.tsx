@@ -343,7 +343,7 @@ const Certificates = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>Username</th>
                   <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>VLD S.No</th>
-                  <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>
+                  {isSuperAdmin && <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -412,9 +412,9 @@ const Certificates = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.imei || '—'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.vldSerial || '—'}</td>
-                    <td style={{ padding: '1rem 0.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                        {isSuperAdmin && (
+                    {isSuperAdmin && (
+                      <td style={{ padding: '1rem 0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                           <button 
                             onClick={() => handleDelete(app.id)}
                             title="Delete Application"
@@ -422,9 +422,9 @@ const Certificates = () => {
                           >
                             <Trash2 size={16} />
                           </button>
-                        )}
-                      </div>
-                    </td>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

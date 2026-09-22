@@ -245,7 +245,7 @@ const AdminManagement = () => {
               <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: '#475569' }}>Role</th>
               <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: '#475569' }}>Manufacturer</th>
               <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: '#475569' }}>Contact</th>
-              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Actions</th>
+              {isSuperAdmin && <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -267,18 +267,18 @@ const AdminManagement = () => {
                     <div>{admin.email}</div>
                     <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{admin.mobile}</div>
                   </td>
-                  <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                      <button onClick={() => openModal(admin)} style={{ padding: '0.5rem', color: '#3b82f6', backgroundColor: '#eff6ff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
-                        <Edit3 size={18} />
-                      </button>
-                      {isSuperAdmin && (
-                        <button onClick={() => handleDelete(admin.id)} style={{ padding: '0.5rem', color: '#ef4444', backgroundColor: '#fef2f2', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                    {isSuperAdmin && (
+                      <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <button onClick={() => openModal(admin)} style={{ padding: '0.5rem', color: '#3b82f6', backgroundColor: '#eff6ff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
+                            <Edit3 size={18} />
+                          </button>
+                          <button onClick={() => handleDelete(admin.id)} style={{ padding: '0.5rem', color: '#ef4444', backgroundColor: '#fef2f2', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                 </tr>
               ))
             )}
