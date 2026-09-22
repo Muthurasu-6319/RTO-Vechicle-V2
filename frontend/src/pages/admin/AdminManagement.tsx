@@ -10,6 +10,10 @@ const AdminManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -268,9 +272,11 @@ const AdminManagement = () => {
                       <button onClick={() => openModal(admin)} style={{ padding: '0.5rem', color: '#3b82f6', backgroundColor: '#eff6ff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
                         <Edit3 size={18} />
                       </button>
-                      <button onClick={() => handleDelete(admin.id)} style={{ padding: '0.5rem', color: '#ef4444', backgroundColor: '#fef2f2', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
-                        <Trash2 size={18} />
-                      </button>
+                      {isSuperAdmin && (
+                        <button onClick={() => handleDelete(admin.id)} style={{ padding: '0.5rem', color: '#ef4444', backgroundColor: '#fef2f2', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

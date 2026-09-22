@@ -14,6 +14,10 @@ const Subscriptions = () => {
   const [searchQuery, setSearchQuery] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
   const [editingSub, setEditingSub] = useState<any>(null);
   const [formData, setFormData] = useState({
     userId: '',
@@ -363,9 +367,11 @@ const Subscriptions = () => {
                     </td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button onClick={() => handleDelete(sub)} title="Delete" style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                          <Trash2 size={16} />
-                        </button>
+                        {isSuperAdmin && (
+                          <button onClick={() => handleDelete(sub)} title="Delete" style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

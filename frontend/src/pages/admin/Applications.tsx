@@ -233,7 +233,7 @@ const Applications = () => {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          {selectedIds.length > 0 && (
+          {isSuperAdmin && selectedIds.length > 0 && (
             <button
               onClick={handleBulkDelete}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}
@@ -371,13 +371,15 @@ const Applications = () => {
                         >
                           View
                         </button>
-                        <button 
-                          onClick={() => handleDelete(app.id)}
-                          title="Delete Application"
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {isSuperAdmin && (
+                          <button 
+                            onClick={() => handleDelete(app.id)}
+                            title="Delete Application"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

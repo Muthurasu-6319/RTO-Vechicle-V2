@@ -18,6 +18,10 @@ const UserManagement = () => {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+  
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
@@ -301,16 +305,18 @@ const UserManagement = () => {
                       <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
                         <button 
                           onClick={() => setEditingUser(user)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', marginRight: '1rem' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary-color)', marginRight: isSuperAdmin ? '1rem' : 0 }}
                         >
                           <Edit size={18} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(user.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {isSuperAdmin && (
+                          <button 
+                            onClick={() => handleDelete(user.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

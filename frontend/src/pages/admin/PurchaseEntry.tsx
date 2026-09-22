@@ -21,6 +21,10 @@ const PurchaseEntry = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allocateModalOpen, setAllocateModalOpen] = useState(false);
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
@@ -483,13 +487,15 @@ const PurchaseEntry = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.invoiceNo || '-'}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{entry.remarks || '-'}</td>
                     <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        title="Delete Entry"
-                        style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          title="Delete Entry"
+                          style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -8,6 +8,10 @@ const Settings = () => {
   const [rtoOffices, setRtoOffices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+
   const [newManufacturer, setNewManufacturer] = useState('');
   const [newRtoOffice, setNewRtoOffice] = useState('');
 
@@ -188,7 +192,9 @@ const Settings = () => {
                   ) : (
                     <>
                       <button onClick={() => setEditingManu({ index: i, val: manu })} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><Edit2 size={16} /></button>
-                      <button onClick={() => deleteManufacturer(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      {isSuperAdmin && (
+                        <button onClick={() => deleteManufacturer(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      )}
                     </>
                   )}
                 </div>
@@ -237,7 +243,9 @@ const Settings = () => {
                   ) : (
                     <>
                       <button onClick={() => setEditingRto({ index: i, val: rto })} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><Edit2 size={16} /></button>
-                      <button onClick={() => deleteRtoOffice(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      {isSuperAdmin && (
+                        <button onClick={() => deleteRtoOffice(i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      )}
                     </>
                   )}
                 </div>

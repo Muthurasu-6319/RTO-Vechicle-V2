@@ -16,6 +16,10 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<any | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+
   const [formData, setFormData] = useState({
     userId: '',
     item: '',
@@ -595,13 +599,15 @@ const Orders = () => {
                         >
                           <Edit3 size={16} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(order)}
-                          title="Delete Order"
-                          style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleDelete(order)}
+                            title="Delete Order"
+                            style={{ padding: '0.4rem', backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
