@@ -237,16 +237,7 @@ Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456"}`;
 });
 
 // In-memory cache for created admins to prevent login failure if database quota is exceeded
-const inMemoryAdmins = [
-  {
-    id: 'default_standard_admin',
-    name: 'Standard Admin',
-    email: 'standard@gmail.com',
-    password: 'standard',
-    role: 'standard',
-    manufacturer: ''
-  }
-];
+const inMemoryAdmins = [];
 
 // Admin Authentication Route
 app.post('/api/auth/login', async (req, res) => {
@@ -258,11 +249,6 @@ app.post('/api/auth/login', async (req, res) => {
     // 1. Check Hardcoded Superadmin Fallback
     if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
       return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '', name: 'Super Admin', email: 'admin@gmail.com' });
-    }
-
-    // 2. Check Hardcoded Standard Admin Fallback
-    if (cleanEmail === 'standard@gmail.com' && cleanPassword === 'standard') {
-      return res.json({ token: 'mock-jwt-token-for-standard-admin', role: 'standard', manufacturer: '', name: 'Standard Admin', email: 'standard@gmail.com' });
     }
 
     // 3. Check inMemoryAdmins cache (case-insensitive email, trimmed password)
@@ -402,10 +388,21 @@ app.put('/api/admins/:id', async (req, res) => {
 app.delete('/api/admins/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const idx = inMemoryAdmins.findIndex(a => a.id === id || (a.email && a.email.toLowerCase().trim() === id.toLowerCase().trim()));
-    if (idx !== -1) inMemoryAdmins.splice(idx, 1);
+    const cleanId = (id || '').toLowerCase().trim();
+
+    for (let i = inMemoryAdmins.length - 1; i >= 0; i--) {
+      const a = inMemoryAdmins[i];
+      if (a.id === id || (a.email && a.email.toLowerCase().trim() === cleanId)) {
+        inMemoryAdmins.splice(i, 1);
+      }
+    }
+
     try {
-      await db.collection('admins').doc(id).delete();
+      if (db) {
+        await db.collection('admins').doc(id).delete();
+        const snap = await db.collection('admins').where('email', '==', cleanId).get();
+        snap.forEach(d => d.ref.delete());
+      }
     } catch (e) {
       console.warn('Firestore admin delete failed:', e.message);
     }

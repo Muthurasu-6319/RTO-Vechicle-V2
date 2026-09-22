@@ -90,13 +90,6 @@ const AdminLogin = () => {
     // 2. Client-side Firestore Fallback
     if (db) {
       try {
-        if (cleanEmail === 'standard@gmail.com' && cleanPassword === 'standard') {
-          setAdminSession('mock-jwt-token-for-standard-admin', 'standard', '', 'Standard Admin', 'standard@gmail.com');
-          navigate('/admin/applications');
-          setIsLoading(false);
-          return;
-        }
-
         const snapshot = await getDocs(collection(db, 'admins'));
         let validAdmin: any = null;
 

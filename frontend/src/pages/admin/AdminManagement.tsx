@@ -127,6 +127,11 @@ const AdminManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.role === 'standard' && !formData.manufacturer.trim()) {
+      alert('Please select a Manufacturer Access for Standard Admin.');
+      return;
+    }
+
     try {
       let saved = false;
       const payload = { 
@@ -137,7 +142,7 @@ const AdminManagement = () => {
       };
 
       try {
-        const url = editingAdmin ? `${backendUrl}/api/admins/${editingAdmin.id}` : `${backendUrl}/api/admins`;
+        const url = editingAdmin ? `${backendUrl}/api/admins/${editingAdmin.id || editingAdmin.email}` : `${backendUrl}/api/admins`;
         const method = editingAdmin ? 'PUT' : 'POST';
         
         const res = await fetch(url, {
@@ -168,7 +173,7 @@ const AdminManagement = () => {
       }
 
       if (editingAdmin) {
-        setAdmins(prev => prev.map(a => a.id === editingAdmin.id ? { ...a, ...payload } : a));
+        setAdmins(prev => prev.map(a => (a.id === editingAdmin.id || (a.email && a.email === editingAdmin.email)) ? { ...a, ...payload } : a));
       } else {
         setAdmins(prev => [payload, ...prev]);
       }
@@ -181,11 +186,15 @@ const AdminManagement = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (adminObj: any) => {
+    const adminId = typeof adminObj === 'string' ? adminObj : adminObj?.id;
+    const adminEmail = typeof adminObj === 'object' ? adminObj?.email : adminObj;
+
     if (window.confirm('Are you sure you want to delete this admin?')) {
       let deleted = false;
+      const targetIdentifier = adminId || adminEmail;
       try {
-        const res = await fetch(`${backendUrl}/api/admins/${id}`, {
+        const res = await fetch(`${backendUrl}/api/admins/${encodeURIComponent(targetIdentifier)}`, {
           method: 'DELETE'
         });
         if (res.ok) deleted = true;
@@ -193,16 +202,24 @@ const AdminManagement = () => {
         console.warn('Backend admin delete failed, attempting Firestore fallback', error);
       }
 
-      if (!deleted && db && id) {
+      if (!deleted && db) {
         try {
-          await deleteDoc(doc(db, 'admins', id));
+          if (adminId) {
+            await deleteDoc(doc(db, 'admins', adminId));
+          }
+          const snap = await getDocs(collection(db, 'admins'));
+          snap.docs.forEach(async (d) => {
+            if (d.data()?.email?.toLowerCase() === (adminEmail || '').toLowerCase()) {
+              await deleteDoc(doc(db, 'admins', d.id));
+            }
+          });
           deleted = true;
         } catch (e) {
           console.error('Firestore delete admin failed:', e);
         }
       }
 
-      setAdmins(prev => prev.filter(a => a.id !== id));
+      setAdmins(prev => prev.filter(a => a.id !== adminId && a.email?.toLowerCase() !== (adminEmail || '').toLowerCase()));
     }
   };
 
@@ -273,7 +290,7 @@ const AdminManagement = () => {
                           <button onClick={() => openModal(admin)} style={{ padding: '0.5rem', color: '#3b82f6', backgroundColor: '#eff6ff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
                             <Edit3 size={18} />
                           </button>
-                          <button onClick={() => handleDelete(admin.id)} style={{ padding: '0.5rem', color: '#ef4444', backgroundColor: '#fef2f2', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}>
+                          <button onClick={() => handleDelete(admin)} style={{ padding: '0.5rem', color: '#ef4444', backgroundColor: '#fef2f2', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>
                             <Trash2 size={18} />
                           </button>
                         </div>
