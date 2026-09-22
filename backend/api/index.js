@@ -818,16 +818,16 @@ app.put('/api/applications/:id/rto-approve', async (req, res) => {
   }
 });
 
-// Admin clicks No (reverts status to Installed so user can approve Yes again)
+// Admin clicks No (reverts status back to TempCertUploaded so user can approve Yes again without re-uploading temp cert)
 app.put('/api/applications/:id/rto-reject', async (req, res) => {
   try {
     const { id } = req.params;
     await db.collection('applications').doc(id).update({
-      status: 'Installed',
+      status: 'TempCertUploaded',
       rtoRejectedAt: new Date().toISOString()
     });
     cache.del('all_applications');
-    res.json({ message: 'Status updated to Installed successfully' });
+    res.json({ message: 'Status updated to TempCertUploaded successfully' });
   } catch (error) {
     console.error('Error RTO rejecting:', error);
     res.status(500).json({ error: error.message });

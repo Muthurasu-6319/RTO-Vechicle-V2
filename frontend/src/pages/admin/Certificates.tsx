@@ -191,7 +191,7 @@ const Certificates = () => {
   };
 
   const handleRtoReject = async (id: string) => {
-    if (!window.confirm('Are you sure you want to change status to Installed?')) return;
+    if (!window.confirm('Are you sure you want to reject user approval and request user confirmation again?')) return;
     let rejected = false;
     try {
       const res = await fetch(`${backendUrl}/api/applications/${id}/rto-reject`, {
@@ -207,7 +207,7 @@ const Certificates = () => {
     if (!rejected && db) {
       try {
         await updateDoc(doc(db, 'applications', id), {
-          status: 'Installed',
+          status: 'TempCertUploaded',
           rtoRejectedAt: new Date().toISOString()
         });
         rejected = true;
@@ -220,7 +220,7 @@ const Certificates = () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       fetchApplications();
     } else {
-      alert('Failed to update status to Installed.');
+      alert('Failed to reset user approval status.');
     }
   };
 
@@ -412,7 +412,7 @@ const Certificates = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>{((currentPage - 1) * itemsPerPage) + index + 1}</td>
                     <td style={{ padding: '1rem 0.5rem', fontWeight: 600 }}>{app.vehicleNo}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>
-                      {app.status === 'Installed' && (
+                      {app.status === 'Installed' && !app.tempCertUrl && (
                         <button 
                           onClick={() => { setUploadType('temp'); setUploadingAppId(app.id); }}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
@@ -421,9 +421,9 @@ const Certificates = () => {
                         </button>
                       )}
                       
-                      {app.status === 'TempCertUploaded' && (
-                        <span style={{ color: '#b45309', backgroundColor: '#fef3c7', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                          Waiting for User Approval
+                      {(app.status === 'TempCertUploaded' || (app.status === 'Installed' && app.tempCertUrl)) && (
+                        <span style={{ color: '#047857', backgroundColor: '#d1fae5', border: '1px solid #6ee7b7', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.8rem', fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-block' }}>
+                          Temporary Certificate Already Uploaded
                         </span>
                       )}
 
