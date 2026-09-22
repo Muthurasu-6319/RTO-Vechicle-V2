@@ -125,10 +125,26 @@ const AdminManagement = () => {
     setEditingAdmin(null);
   };
 
+  const isManufacturerAdminExists = formData.role === 'standard' && !!formData.manufacturer.trim() && admins.some(a => {
+    if (editingAdmin) {
+      if (a.id === editingAdmin.id || (a.email && editingAdmin.email && a.email.toLowerCase() === editingAdmin.email.toLowerCase())) {
+        return false;
+      }
+    }
+    const isStandard = (a.role || 'standard').toLowerCase().includes('standard');
+    const sameManu = (a.manufacturer || '').trim().toLowerCase() === formData.manufacturer.trim().toLowerCase();
+    return isStandard && sameManu;
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.role === 'standard' && !formData.manufacturer.trim()) {
       alert('Please select a Manufacturer Access for Standard Admin.');
+      return;
+    }
+
+    if (formData.role === 'standard' && isManufacturerAdminExists) {
+      alert('this Manufacturer standard admin was already created');
       return;
     }
 
@@ -360,7 +376,13 @@ const AdminManagement = () => {
                       placeholder="Select Manufacturer"
                       required={formData.role === 'standard'}
                     />
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Standard admins will only see data for this manufacturer.</span>
+                    {isManufacturerAdminExists ? (
+                      <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.35rem', display: 'block', fontWeight: 600 }}>
+                        this Manufacturer standard admin was already created
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Standard admins will only see data for this manufacturer.</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -368,7 +390,13 @@ const AdminManagement = () => {
               {/* Footer */}
               <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem', flexShrink: 0, backgroundColor: '#f8fafc' }}>
                 <button type="button" onClick={closeModal} style={{ flex: 1, padding: '0.625rem', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '0.625rem', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>{editingAdmin ? 'Update' : 'Create'}</button>
+                <button 
+                  type="submit" 
+                  disabled={isManufacturerAdminExists}
+                  style={{ flex: 1, padding: '0.625rem', backgroundColor: isManufacturerAdminExists ? '#cbd5e1' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: isManufacturerAdminExists ? 'not-allowed' : 'pointer', fontSize: '0.875rem' }}
+                >
+                  {editingAdmin ? 'Update' : 'Create'}
+                </button>
               </div>
             </form>
           </div>
