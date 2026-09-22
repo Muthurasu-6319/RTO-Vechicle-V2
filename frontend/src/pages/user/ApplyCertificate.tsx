@@ -101,36 +101,19 @@ const ApplyCertificate = () => {
     return () => unsubscribe();
   }, []);
 
-  const [manualValidity, setManualValidity] = useState(false);
-
   // Logic to calculate Validity based on Registration Date
   useEffect(() => {
-    if (manualValidity) return; // Preserve manual selection if user explicitly selected
-
     if (formData.registrationDate) {
-      const regDate = new Date(formData.registrationDate);
-      const today = new Date();
-      
-      // Exact calculation: add 8 years to registration date
-      const thresholdDate = new Date(regDate);
-      thresholdDate.setFullYear(thresholdDate.getFullYear() + 8);
-
-      // If today has passed the threshold date, it's more than 8 years → 1 Year
-      if (today > thresholdDate) {
+      // Up to 22/09/2018 => 1 Year; After 22/09/2018 (23/09/2018 onwards) => 2 Years
+      if (formData.registrationDate <= '2018-09-22') {
         setFormData(prev => ({ ...prev, validity: '1 Year' }));
       } else {
-        // If vehicle <= 8 years, default to 2 Years ONLY if user has remaining 2-Year quota, else default to 1 Year
-        if (quota && quota.remainingQuota2Year <= 0 && quota.remainingQuota > 0) {
-          setFormData(prev => ({ ...prev, validity: '1 Year' }));
-        } else {
-          setFormData(prev => ({ ...prev, validity: '2 Years' }));
-        }
+        setFormData(prev => ({ ...prev, validity: '2 Years' }));
       }
     } else {
-      // No reg date entered → reset validity to empty
       setFormData(prev => ({ ...prev, validity: '' }));
     }
-  }, [formData.registrationDate, quota, manualValidity]);
+  }, [formData.registrationDate]);
 
   // Logic to calculate Manufacturer based on VLD S.No
   useEffect(() => {
@@ -202,13 +185,7 @@ const ApplyCertificate = () => {
     const { name, value } = e.target;
     
     if (name === 'validity') {
-      setManualValidity(true);
-      setFormData(prev => ({ ...prev, validity: value }));
       return;
-    }
-
-    if (name === 'registrationDate') {
-      setManualValidity(false);
     }
 
     // Vehicle No Validation: Max 10 characters, always UPPERCASE
@@ -519,25 +496,32 @@ const ApplyCertificate = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Registration Date</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                Registration Date <span style={{ fontSize: '0.8rem', color: '#64748b' }}>(DD/MM/YYYY)</span>
+              </label>
               <input 
                 type="date" name="registrationDate" value={formData.registrationDate} onChange={handleChange} required 
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} 
               />
+              {formData.registrationDate && (
+                <span style={{ fontSize: '0.75rem', color: '#4f46e5', marginTop: '0.25rem', display: 'block', fontWeight: 600 }}>
+                  Selected Date: {formData.registrationDate.split('-').reverse().join('/')}
+                </span>
+              )}
             </div>
 
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Validity (Years)</label>
               <select 
                 name="validity" value={formData.validity} onChange={handleChange} required
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', cursor: 'pointer' }}
+                disabled={true}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: '#1e293b', fontWeight: 600 }}
               >
                 <option value="" disabled>— Enter Reg Date to auto-calculate —</option>
                 <option value="1 Year">1 Year</option>
                 <option value="2 Years">2 Years</option>
               </select>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-calculated based on Reg Date (can override manually)</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-calculated based on Reg Date</span>
             </div>
 
             <div>
