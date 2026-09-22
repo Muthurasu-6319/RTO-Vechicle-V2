@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import UploadButton from '../../components/UploadButton';
 import { Camera, FileText } from 'lucide-react';
 import { auth, db } from '../../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { useAuthUser, useUserApplications, useUserOrders, useUserSubscriptions } from '../../hooks/useUserData';
 
 const ApplyCertificate = () => {
@@ -151,7 +151,7 @@ const ApplyCertificate = () => {
     }
   }, [formData.vldSerial, manufacturers]);
 
-  // Real-time Validation for Uniqueness
+  // Real-time Validation for Uniqueness (IMEI No, VLD S.No, Vehicle No)
   useEffect(() => {
     const timer = setTimeout(async () => {
       const payload = {
@@ -165,6 +165,7 @@ const ApplyCertificate = () => {
         return;
       }
 
+      let checked = false;
       try {
         const res = await fetch(`${backendUrl}/api/applications/check-unique`, {
           method: 'POST',
@@ -179,9 +180,34 @@ const ApplyCertificate = () => {
             vldSerial: data.vldExists ? 'This VLD S.No is already registered.' : '',
             vehicleNo: data.vehicleExists ? 'This vehicle number is already registered.' : ''
           });
+          checked = true;
         }
       } catch (err) {
-        console.error('Failed to check uniqueness', err);
+        console.warn('Backend uniqueness check failed, using Firestore Web SDK fallback', err);
+      }
+
+      if (!checked && db) {
+        try {
+          const appsRef = collection(db, 'applications');
+          const snapshot = await getDocs(appsRef);
+          const allApps = snapshot.docs.map(doc => doc.data());
+
+          const cleanImei = payload.imei.toLowerCase();
+          const cleanVld = payload.vldSerial.toLowerCase();
+          const cleanVehicle = payload.vehicleNo.replace(/[\s\-_]/g, '').toUpperCase();
+
+          const imeiExists = !!cleanImei && allApps.some((a: any) => String(a.imei || a.imeiNo || a.IMEI || '').trim().toLowerCase() === cleanImei);
+          const vldExists = !!cleanVld && allApps.some((a: any) => String(a.vldSerial || a.vldNo || a.vldSerialNo || '').trim().toLowerCase() === cleanVld);
+          const vehicleExists = !!cleanVehicle && allApps.some((a: any) => String(a.vehicleNo || a.regNo || a.registrationNo || '').replace(/[\s\-_]/g, '').toUpperCase() === cleanVehicle);
+
+          setErrors({
+            imei: imeiExists ? 'This IMEI number is already registered.' : '',
+            vldSerial: vldExists ? 'This VLD S.No is already registered.' : '',
+            vehicleNo: vehicleExists ? 'This vehicle number is already registered.' : ''
+          });
+        } catch (e) {
+          console.error('Firestore uniqueness check fallback error:', e);
+        }
       }
     }, 300);
 
@@ -521,8 +547,8 @@ const ApplyCertificate = () => {
           <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
             <button 
               type="submit" 
-              disabled={submitting || isStockZero || isSubZeroFor2Year}
-              style={{ padding: '0.75rem 2rem', backgroundColor: (submitting || isStockZero || isSubZeroFor2Year) ? '#cbd5e1' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: (submitting || isStockZero || isSubZeroFor2Year) ? 'not-allowed' : 'pointer', fontSize: '1rem' }}
+              disabled={submitting || isStockZero || isSubZeroFor2Year || !!errors.imei || !!errors.vldSerial || !!errors.vehicleNo}
+              style={{ padding: '0.75rem 2rem', backgroundColor: (submitting || isStockZero || isSubZeroFor2Year || !!errors.imei || !!errors.vldSerial || !!errors.vehicleNo) ? '#cbd5e1' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: (submitting || isStockZero || isSubZeroFor2Year || !!errors.imei || !!errors.vldSerial || !!errors.vehicleNo) ? 'not-allowed' : 'pointer', fontSize: '1rem' }}
             >
               {submitting ? 'Submitting...' : 'Submit Application'}
             </button>
