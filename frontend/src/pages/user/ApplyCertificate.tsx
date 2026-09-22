@@ -258,15 +258,15 @@ const ApplyCertificate = () => {
       return;
     }
     
-    // Quota Enforcement - only when validity is set
-    if (formData.validity === '1 Year' && quota && quota.remainingQuota <= 0) {
-      alert('Limit reached! You have exhausted your 1 Year limit. Please contact admin for more quantity.');
+    // Quota Enforcement - 1 Year
+    if (quota.remainingQuota <= 0) {
+      alert('your stock count 0');
       return;
     }
 
     // Quota Enforcement - 2 Years
-    if (formData.validity === '2 Years' && quota && quota.remainingQuota2Year <= 0) {
-      alert('Limit reached! You have exhausted your 2 Years limit. Please subscribe for more quantity.');
+    if (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0) {
+      alert('your Subscription count 0');
       return;
     }
 
