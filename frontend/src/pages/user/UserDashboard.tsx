@@ -16,8 +16,8 @@ const UserDashboard = () => {
   const totalQuota1Year = orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
   const totalQuota2Year = subscriptions.reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
 
-  const appliedCount = applications.filter((app: any) =>
-    ['Pending', 'Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)
+  const installedCount = applications.filter((app: any) =>
+    app.status !== 'Certified'
   ).length;
 
   const certifiedCount = applications.filter((app: any) => app.status === 'Certified').length;
@@ -48,14 +48,14 @@ const UserDashboard = () => {
           </div>
         </div>
 
-        {/* Applications Submitted */}
+        {/* Installed */}
         <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ padding: '1rem', backgroundColor: '#fef3c7', color: '#f59e0b', borderRadius: '0.75rem' }}>
             <FileText size={28} />
           </div>
           <div>
-            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Applied</h3>
-            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : appliedCount}</p>
+            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Installed</h3>
+            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{loading ? '...' : installedCount}</p>
           </div>
         </div>
 
