@@ -153,18 +153,39 @@ app.post('/api/scan-barcode', async (req, res) => {
     const { imageUrl } = req.body;
     if (!imageUrl) return res.status(400).json({ error: 'No image URL provided' });
 
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('OCR Error: GEMINI_API_KEY environment variable is not configured.');
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on backend server.' });
+    }
+
     // Download the image
     const imageResp = await fetch(imageUrl);
+    if (!imageResp.ok) {
+      return res.status(400).json({ error: 'Failed to fetch image from provided URL' });
+    }
+
     const arrayBuffer = await imageResp.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
+    const rawMimeType = imageResp.headers.get('content-type') || 'image/jpeg';
+    const mimeType = rawMimeType.split(';')[0].trim();
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Try gemini-1.5-flash first, fallback to gemini-2.0-flash
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    } catch (e) {
+      model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    }
 
-    const prompt = `Extract the IMEI number (typically 15 digits) and the VLD Serial Number (typically alphanumeric starting with VLD or similar) from this image. 
-    Return ONLY a valid JSON object without any markdown formatting or extra text. 
-    Example format: {"imei": "123456789012345", "vldSerial": "VLD-1234-XYZ"}`;
+    const prompt = `Inspect this image of a device barcode/label carefully.
+1. Find the 15-digit IMEI number (e.g., 864201049281726).
+2. Find the VLD Serial Number (S.No / Serial Number, e.g., IRSN..., HITECH..., or similar).
+
+Return ONLY a valid JSON object without any markdown formatting or surrounding text.
+Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456"}`;
 
     const imageParts = [
       {
@@ -175,17 +196,43 @@ app.post('/api/scan-barcode', async (req, res) => {
       }
     ];
 
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const responseText = result.response.text();
-    
-    // Clean up potential markdown wrapper from response
-    const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsedData = JSON.parse(jsonStr);
+    let responseText = '';
+    try {
+      const result = await model.generateContent([prompt, ...imageParts]);
+      responseText = result.response.text();
+    } catch (apiErr) {
+      console.warn('Gemini 1.5 Flash OCR failed, trying gemini-2.0-flash fallback:', apiErr.message);
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const fallbackResult = await fallbackModel.generateContent([prompt, ...imageParts]);
+      responseText = fallbackResult.response.text();
+    }
+
+    // Clean up markdown wrappers
+    const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+    let parsedData = { imei: '', vldSerial: '' };
+    try {
+      parsedData = JSON.parse(cleanedText);
+    } catch (e) {
+      console.warn('JSON parsing failed for OCR response, attempting regex extraction:', e.message);
+    }
+
+    // Robust Regex fallback for 15-digit IMEI if missing or invalid
+    if (!parsedData.imei || String(parsedData.imei).length !== 15) {
+      const imeiMatch = responseText.match(/\b\d{15}\b/);
+      if (imeiMatch) parsedData.imei = imeiMatch[0];
+    }
+
+    // Regex fallback for VLD Serial Number
+    if (!parsedData.vldSerial) {
+      const vldMatch = responseText.match(/\b(IRSN|IRNS|HITECH|HITEH|VLD)[A-Z0-9-]+\b/i);
+      if (vldMatch) parsedData.vldSerial = vldMatch[0];
+    }
 
     res.json(parsedData);
   } catch (error) {
     console.error('OCR Error:', error);
-    res.status(500).json({ error: 'Failed to extract data from image' });
+    res.status(500).json({ error: 'Failed to extract data from image', details: error.message });
   }
 });
 
@@ -1193,7 +1240,7 @@ app.get('/api/users/:uid/quota', async (req, res) => {
       const allApps = await getApplicationsCached();
       allApps.forEach(app => {
         if (app.userId === uid || (userEmail && app.userEmail === userEmail)) {
-          if (app.validity === '2 Years') {
+          if ((app.validity || '').trim() === '2 Years') {
             used2Year++;
           } else {
             used1Year++;
@@ -1207,10 +1254,10 @@ app.get('/api/users/:uid/quota', async (req, res) => {
     res.json({ 
       totalQuota: totalQuota1Year, 
       usedQuota: used1Year, 
-      remainingQuota: totalQuota1Year - used1Year,
+      remainingQuota: Math.max(0, totalQuota1Year - used1Year),
       totalQuota2Year,
       usedQuota2Year: used2Year,
-      remainingQuota2Year: totalQuota2Year - used2Year
+      remainingQuota2Year: Math.max(0, totalQuota2Year - used2Year)
     });
   } catch (error) {
     console.error('Error calculating quota:', error);

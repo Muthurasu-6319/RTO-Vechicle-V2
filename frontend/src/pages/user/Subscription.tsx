@@ -16,8 +16,8 @@ const Subscription = () => {
 
   // Compute total, used, and remaining quota directly from RAM cache (matches UserDashboard.tsx)
   const totalQuota2Year = subscriptions.reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
-  const usedQuota2Year = applications.filter((app: any) => app.validity === '2 Years').length;
-  const remainingQuota2Year = totalQuota2Year - usedQuota2Year;
+  const usedQuota2Year = applications.filter((app: any) => (app.validity || '').trim() === '2 Years').length;
+  const remainingQuota2Year = Math.max(0, totalQuota2Year - usedQuota2Year);
 
   const totalPages = Math.ceil(subscriptions.length / itemsPerPage) || 1;
   const paginatedSubscriptions = subscriptions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

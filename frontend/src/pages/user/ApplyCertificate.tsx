@@ -101,8 +101,12 @@ const ApplyCertificate = () => {
     return () => unsubscribe();
   }, []);
 
+  const [manualValidity, setManualValidity] = useState(false);
+
   // Logic to calculate Validity based on Registration Date
   useEffect(() => {
+    if (manualValidity) return; // Preserve manual selection if user explicitly selected
+
     if (formData.registrationDate) {
       const regDate = new Date(formData.registrationDate);
       const today = new Date();
@@ -115,13 +119,18 @@ const ApplyCertificate = () => {
       if (today > thresholdDate) {
         setFormData(prev => ({ ...prev, validity: '1 Year' }));
       } else {
-        setFormData(prev => ({ ...prev, validity: '2 Years' }));
+        // If vehicle <= 8 years, default to 2 Years ONLY if user has remaining 2-Year quota, else default to 1 Year
+        if (quota && quota.remainingQuota2Year <= 0 && quota.remainingQuota > 0) {
+          setFormData(prev => ({ ...prev, validity: '1 Year' }));
+        } else {
+          setFormData(prev => ({ ...prev, validity: '2 Years' }));
+        }
       }
     } else {
       // No reg date entered → reset validity to empty
       setFormData(prev => ({ ...prev, validity: '' }));
     }
-  }, [formData.registrationDate]);
+  }, [formData.registrationDate, quota, manualValidity]);
 
   // Logic to calculate Manufacturer based on VLD S.No
   useEffect(() => {
@@ -192,6 +201,16 @@ const ApplyCertificate = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
+    if (name === 'validity') {
+      setManualValidity(true);
+      setFormData(prev => ({ ...prev, validity: value }));
+      return;
+    }
+
+    if (name === 'registrationDate') {
+      setManualValidity(false);
+    }
+
     // Vehicle No Validation: Max 10 characters, always UPPERCASE
     if (name === 'vehicleNo') {
       if (value.length > 10) return;
@@ -208,11 +227,11 @@ const ApplyCertificate = () => {
     if (name === 'mobileNumber') {
       const digitsOnly = value.replace(/\D/g, '');
       if (digitsOnly.length > 10) return;
-      setFormData({ ...formData, mobileNumber: digitsOnly });
+      setFormData(prev => ({ ...prev, mobileNumber: digitsOnly }));
       return;
     }
 
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleBarcodeUploadSuccess = async (url: string) => {

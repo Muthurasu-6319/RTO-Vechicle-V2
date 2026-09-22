@@ -22,11 +22,11 @@ const UserDashboard = () => {
 
   const certifiedCount = applications.filter((app: any) => app.status === 'Certified').length;
 
-  const usedBalanceStock = applications.filter((app: any) => app.validity === '1 Year' || !app.validity).length; 
-  const usedAdditionalSub = applications.filter((app: any) => app.validity === '2 Years').length;
+  const usedBalanceStock = applications.filter((app: any) => (app.validity || '').trim() !== '2 Years').length; 
+  const usedAdditionalSub = applications.filter((app: any) => (app.validity || '').trim() === '2 Years').length;
 
-  const remainingQuota = totalQuota1Year - usedBalanceStock;
-  const remainingQuota2Year = totalQuota2Year - usedAdditionalSub;
+  const remainingQuota = Math.max(0, totalQuota1Year - usedBalanceStock);
+  const remainingQuota2Year = Math.max(0, totalQuota2Year - usedAdditionalSub);
 
   return (
     <div>
