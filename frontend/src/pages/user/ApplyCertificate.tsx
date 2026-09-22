@@ -5,10 +5,36 @@ import UploadButton from '../../components/UploadButton';
 import { Camera, FileText } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAuthUser, useUserApplications, useUserOrders, useUserSubscriptions } from '../../hooks/useUserData';
 
 const ApplyCertificate = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthUser();
+  const userId = user?.uid;
+
+  const { data: applications = [] } = useUserApplications(userId);
+  const { data: orders = [] } = useUserOrders(userId);
+  const { data: subscriptions = [] } = useUserSubscriptions(userId);
+
+  // Compute live quota metrics directly from RAM cached data
+  const totalQuota1Year = orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+  const totalQuota2Year = subscriptions.reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
+
+  const usedBalanceStock = applications.length;
+  const usedAdditionalSub = applications.filter((app: any) => (app.validity || '').trim() === '2 Years').length;
+
+  const remainingQuota = Math.max(0, totalQuota1Year - usedBalanceStock);
+  const remainingQuota2Year = Math.max(0, totalQuota2Year - usedAdditionalSub);
+
+  const quota = {
+    totalQuota: totalQuota1Year,
+    usedQuota: usedBalanceStock,
+    remainingQuota,
+    totalQuota2Year,
+    usedQuota2Year: usedAdditionalSub,
+    remainingQuota2Year
+  };
 
   const [formData, setFormData] = useState({
     imei: '',
@@ -36,9 +62,6 @@ const ApplyCertificate = () => {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [rtoOffices, setRtoOffices] = useState<string[]>([]);
   
-  // Quota Management
-  const [quota, setQuota] = useState<{ totalQuota: number, usedQuota: number, remainingQuota: number, totalQuota2Year: number, usedQuota2Year: number, remainingQuota2Year: number } | null>(null);
-
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   useEffect(() => {
@@ -83,22 +106,6 @@ const ApplyCertificate = () => {
     };
     
     fetchSettings();
-
-    // Wait for auth state, then fetch quota
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!user) return;
-      try {
-        const res = await fetch(`${backendUrl}/api/users/${user.uid}/quota`);
-        if (res.ok) {
-          const data = await res.json();
-          setQuota(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch quota', err);
-      }
-    });
-
-    return () => unsubscribe();
   }, []);
 
   // Logic to calculate Validity based on Registration Date
@@ -308,12 +315,8 @@ const ApplyCertificate = () => {
         const currentUser = auth.currentUser;
         if (currentUser) {
           queryClient.invalidateQueries({ queryKey: ['applications', currentUser.uid] });
-          queryClient.invalidateQueries({ queryKey: ['quota', currentUser.uid] });
-          const quotaRes = await fetch(`${backendUrl}/api/users/${currentUser.uid}/quota`);
-          if (quotaRes.ok) {
-            const quotaData = await quotaRes.json();
-            setQuota(quotaData);
-          }
+          queryClient.invalidateQueries({ queryKey: ['orders', currentUser.uid] });
+          queryClient.invalidateQueries({ queryKey: ['subscriptions', currentUser.uid] });
         }
 
         // Reset form
@@ -344,8 +347,8 @@ const ApplyCertificate = () => {
     }
   };
 
-  const isStockZero = quota !== null && quota.remainingQuota <= 0;
-  const isSubZeroFor2Year = quota !== null && quota.remainingQuota2Year <= 0 && formData.validity === '2 Years';
+  const isStockZero = quota.remainingQuota <= 0;
+  const isSubZeroFor2Year = quota.remainingQuota2Year <= 0 && formData.validity === '2 Years';
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '2rem' }}>
