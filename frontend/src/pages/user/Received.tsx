@@ -16,7 +16,7 @@ const Received = () => {
 
   // Compute total, used, and balance stock from RAM cache
   const totalStock = orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
-  const usedStock = applications.filter((app: any) => (app.validity || '').trim() !== '2 Years').length;
+  const usedStock = applications.length;
   const balanceStock = Math.max(0, totalStock - usedStock);
 
   const totalPages = Math.ceil(orders.length / itemsPerPage) || 1;
