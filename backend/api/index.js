@@ -585,28 +585,45 @@ app.post('/api/applications/check-unique', async (req, res) => {
     const { imei, vldSerial, vehicleNo } = req.body;
     const result = { imeiExists: false, vldExists: false, vehicleExists: false };
 
-    if (!imei && !vldSerial && !vehicleNo) {
+    const cleanImei = String(imei || '').trim();
+    const cleanVld = String(vldSerial || '').trim();
+    const cleanVehicle = String(vehicleNo || '').replace(/[\s\-_]/g, '').toUpperCase();
+
+    if (!cleanImei && !cleanVld && !cleanVehicle) {
       return res.json(result);
     }
 
     let apps = [];
     try {
-      apps = await getApplicationsCached();
+      const snapshot = await db.collection('applications').get();
+      snapshot.forEach(doc => {
+        apps.push({ id: doc.id, ...doc.data() });
+      });
+      if (apps.length > 0) {
+        cache.put('all_applications', apps, 60 * 1000);
+      }
     } catch (e) {
       console.warn('Uniqueness check DB warning:', e.message);
+      try { apps = await getApplicationsCached(); } catch (err) {}
     }
 
-    if (imei) {
-      const cleanImei = imei.trim();
-      result.imeiExists = apps.some(a => (a.imei || '').trim() === cleanImei);
+    if (cleanImei) {
+      result.imeiExists = apps.some(a => {
+        const val = String(a.imei || a.imeiNo || a.IMEI || a.imeiNumber || '').trim();
+        return val && val === cleanImei;
+      });
     }
-    if (vldSerial) {
-      const cleanVld = vldSerial.trim();
-      result.vldExists = apps.some(a => (a.vldSerial || '').trim() === cleanVld);
+    if (cleanVld) {
+      result.vldExists = apps.some(a => {
+        const val = String(a.vldSerial || a.vldNo || a.vldSerialNo || a.serialNo || '').trim();
+        return val && val === cleanVld;
+      });
     }
-    if (vehicleNo) {
-      const cleanVehicle = vehicleNo.replace(/\s+/g, '').toUpperCase();
-      result.vehicleExists = apps.some(a => (a.vehicleNo || '').replace(/\s+/g, '').toUpperCase() === cleanVehicle);
+    if (cleanVehicle) {
+      result.vehicleExists = apps.some(a => {
+        const val = String(a.vehicleNo || a.regNo || a.registrationNo || a.vehicleNumber || '').replace(/[\s\-_]/g, '').toUpperCase();
+        return val && val === cleanVehicle;
+      });
     }
 
     res.json(result);
@@ -622,23 +639,34 @@ app.post('/api/applications', async (req, res) => {
     const data = req.body;
     let apps = [];
     try {
-      apps = await getApplicationsCached();
+      const snapshot = await db.collection('applications').get();
+      snapshot.forEach(doc => {
+        apps.push({ id: doc.id, ...doc.data() });
+      });
+      if (apps.length > 0) {
+        cache.put('all_applications', apps, 60 * 1000);
+      }
     } catch (e) {
-      console.warn('DB cache fetch warning during app creation:', e.message);
+      console.warn('DB fetch warning during app creation:', e.message);
+      try { apps = await getApplicationsCached(); } catch (err) {}
     }
 
+    const cleanImei = String(data.imei || '').trim();
+    const cleanVld = String(data.vldSerial || '').trim();
+    const cleanVehicle = String(data.vehicleNo || '').replace(/[\s\-_]/g, '').toUpperCase();
+
     // Check if IMEI already exists
-    if (data.imei && apps.some(a => (a.imei || '').trim() === data.imei.trim())) {
+    if (cleanImei && apps.some(a => String(a.imei || a.imeiNo || a.IMEI || '').trim() === cleanImei)) {
       return res.status(400).json({ error: 'This IMEI number is already registered.' });
     }
 
     // Check if Vehicle No already exists
-    if (data.vehicleNo && apps.some(a => (a.vehicleNo || '').replace(/\s+/g, '').toUpperCase() === data.vehicleNo.replace(/\s+/g, '').toUpperCase())) {
+    if (cleanVehicle && apps.some(a => String(a.vehicleNo || a.regNo || a.registrationNo || '').replace(/[\s\-_]/g, '').toUpperCase() === cleanVehicle)) {
       return res.status(400).json({ error: 'This vehicle number is already registered.' });
     }
 
     // Check if VLD Serial already exists
-    if (data.vldSerial && apps.some(a => (a.vldSerial || '').trim() === data.vldSerial.trim())) {
+    if (cleanVld && apps.some(a => String(a.vldSerial || a.vldNo || a.vldSerialNo || '').trim() === cleanVld)) {
       return res.status(400).json({ error: 'This VLD S.No is already registered.' });
     }
 

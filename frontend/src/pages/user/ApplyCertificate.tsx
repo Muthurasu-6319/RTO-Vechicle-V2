@@ -165,9 +165,9 @@ const ApplyCertificate = () => {
   useEffect(() => {
     const timer = setTimeout(async () => {
       const payload = {
-        imei: formData.imei.length === 15 ? formData.imei : '',
-        vldSerial: formData.vldSerial.length >= 3 ? formData.vldSerial : '',
-        vehicleNo: formData.vehicleNo.length >= 4 ? formData.vehicleNo : ''
+        imei: formData.imei.trim().length >= 5 ? formData.imei.trim() : '',
+        vldSerial: formData.vldSerial.trim().length >= 3 ? formData.vldSerial.trim() : '',
+        vehicleNo: formData.vehicleNo.trim().length >= 3 ? formData.vehicleNo.trim() : ''
       };
 
       if (!payload.imei && !payload.vldSerial && !payload.vehicleNo) {
@@ -193,7 +193,7 @@ const ApplyCertificate = () => {
       } catch (err) {
         console.error('Failed to check uniqueness', err);
       }
-    }, 600);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [formData.imei, formData.vldSerial, formData.vehicleNo, backendUrl]);
