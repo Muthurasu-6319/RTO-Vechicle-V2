@@ -383,78 +383,6 @@ const ApplyCertificate = () => {
 
         {/* Form Fields Section */}
         <div className="glass-panel" style={{ padding: '2rem', borderRadius: '1rem', flex: 2 }}>
-        {/* Quota Info Banner - shown when validity is empty (before reg date) */}
-        {quota && !formData.registrationDate && (
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ flex: 1, padding: '0.75rem 1rem', backgroundColor: '#e0e7ff', borderRadius: '0.5rem', border: '1px solid #818cf8' }}>
-              <p style={{ fontWeight: 600, color: '#3730a3', margin: 0, fontSize: '0.875rem' }}>Stocks</p>
-              <p style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: quota.remainingQuota <= 0 ? '#ef4444' : '#4f46e5' }}>{quota.remainingQuota} Left</p>
-            </div>
-            <div style={{ flex: 1, padding: '0.75rem 1rem', backgroundColor: '#f3e8ff', borderRadius: '0.5rem', border: '1px solid #a78bfa' }}>
-              <p style={{ fontWeight: 600, color: '#5b21b6', margin: 0, fontSize: '0.875rem' }}>Subscription</p>
-              <p style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: quota.remainingQuota2Year <= 0 ? '#ef4444' : '#7c3aed' }}>{quota.remainingQuota2Year} Left</p>
-            </div>
-          </div>
-        )}
-
-        {/* Quota Exceeded Message - 1 Year */}
-        {quota && quota.remainingQuota <= 0 && formData.validity === '1 Year' && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
-              borderRadius: '0.5rem',
-              marginBottom: '1.5rem',
-              border: '1px solid #f87171',
-              fontWeight: 600,
-              textAlign: 'center'
-            }}>
-              Limit reached! You cannot submit another 1 Year certificate. Please contact admin for more quota.
-            </div>
-          )}
-
-        {/* Quota Exceeded Message - 2 Years */}
-        {quota && quota.remainingQuota2Year <= 0 && formData.validity === '2 Years' && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
-              borderRadius: '0.5rem',
-              marginBottom: '1.5rem',
-              border: '1px solid #f87171',
-              fontWeight: 600,
-              textAlign: 'center'
-            }}>
-              Limit reached! You cannot submit another 2 Years certificate. Please subscribe for additional quota.
-            </div>
-          )}
-
-        {/* 1-Year Quota Banner */}
-        {quota && formData.validity === '1 Year' && (
-          <div style={{ padding: '1rem', backgroundColor: quota.remainingQuota <= 5 ? '#fee2e2' : '#e0e7ff', borderRadius: '0.5rem', marginBottom: '1.5rem', border: `1px solid ${quota.remainingQuota <= 5 ? '#f87171' : '#818cf8'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h4 style={{ fontWeight: 600, color: quota.remainingQuota <= 5 ? '#991b1b' : '#3730a3', margin: 0 }}>Stocks</h4>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: quota.remainingQuota <= 5 ? '#b91c1c' : '#4f46e5' }}>Total Allocated: {quota.totalQuota} | Used: {quota.usedQuota}</p>
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: quota.remainingQuota <= 0 ? '#ef4444' : '#4f46e5' }}>
-              {quota.remainingQuota} Left
-            </div>
-          </div>
-        )}
-
-        {/* 2-Year Quota Banner */}
-        {quota && formData.validity === '2 Years' && (
-          <div style={{ padding: '1rem', backgroundColor: quota.remainingQuota2Year <= 5 ? '#fee2e2' : '#f3e8ff', borderRadius: '0.5rem', marginBottom: '1.5rem', border: `1px solid ${quota.remainingQuota2Year <= 5 ? '#f87171' : '#a78bfa'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h4 style={{ fontWeight: 600, color: quota.remainingQuota2Year <= 5 ? '#991b1b' : '#5b21b6', margin: 0 }}>Subscription</h4>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: quota.remainingQuota2Year <= 5 ? '#b91c1c' : '#7c3aed' }}>Total Allocated: {quota.totalQuota2Year} | Used: {quota.usedQuota2Year}</p>
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: quota.remainingQuota2Year <= 0 ? '#ef4444' : '#7c3aed' }}>
-              {quota.remainingQuota2Year} Left
-            </div>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             
@@ -463,7 +391,7 @@ const ApplyCertificate = () => {
               <input 
                 type="text" name="imei" value={formData.imei} onChange={handleChange} required 
                 placeholder="15-character IMEI"
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
+                disabled={isStockZero}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${errors.imei ? '#ef4444' : '#e2e8f0'}`, backgroundColor: '#f8fafc' }} 
               />
               {errors.imei && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 500 }}>{errors.imei}</span>}
@@ -473,7 +401,7 @@ const ApplyCertificate = () => {
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>VLD S.No</label>
               <input 
                 type="text" name="vldSerial" value={formData.vldSerial} onChange={handleChange} required 
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
+                disabled={isStockZero}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${errors.vldSerial ? '#ef4444' : '#e2e8f0'}`, backgroundColor: '#f8fafc' }} 
               />
               {errors.vldSerial && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block', fontWeight: 500 }}>{errors.vldSerial}</span>}
@@ -484,7 +412,7 @@ const ApplyCertificate = () => {
               <input 
                 type="text" name="vehicleNo" value={formData.vehicleNo} onChange={handleChange} required 
                 placeholder="TN01AB1234"
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
+                disabled={isStockZero}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${errors.vehicleNo || isStockZero ? '#ef4444' : '#e2e8f0'}`, textTransform: 'uppercase', backgroundColor: isStockZero ? '#fef2f2' : 'white' }} 
               />
               {isStockZero ? (
@@ -531,7 +459,7 @@ const ApplyCertificate = () => {
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Manufacturer</label>
               <select 
                 name="manufacturer" value={formData.manufacturer} onChange={handleChange} required
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
+                disabled={isStockZero}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}
               >
                 <option value="">Select Manufacturer</option>
@@ -545,8 +473,8 @@ const ApplyCertificate = () => {
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>RTO Office</label>
               <select 
                 name="rtoOffice" value={formData.rtoOffice} onChange={handleChange} required
-                disabled={isStockZero || isSubZeroFor2Year || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${isSubZeroFor2Year ? '#ef4444' : '#e2e8f0'}`, backgroundColor: isSubZeroFor2Year ? '#fef2f2' : 'white' }}
+                disabled={isStockZero || isSubZeroFor2Year}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${isSubZeroFor2Year ? '#ef4444' : '#e2e8f0'}`, backgroundColor: isSubZeroFor2Year ? '#fef2f2' : 'white', cursor: (isStockZero || isSubZeroFor2Year) ? 'not-allowed' : 'pointer' }}
               >
                 <option value="">Select RTO Office</option>
                 {rtoOffices.map((rto, i) => (
@@ -564,7 +492,7 @@ const ApplyCertificate = () => {
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Customer Name</label>
               <input 
                 type="text" name="customerName" value={formData.customerName} onChange={handleChange} required 
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
+                disabled={isStockZero}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} 
               />
             </div>
@@ -575,7 +503,7 @@ const ApplyCertificate = () => {
                 type="tel" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} required 
                 placeholder="10-digit mobile number"
                 maxLength={10}
-                disabled={isStockZero || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
+                disabled={isStockZero}
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: `1px solid ${formData.mobileNumber.length > 0 && formData.mobileNumber.length < 10 ? '#f59e0b' : '#e2e8f0'}` }} 
               />
               {formData.mobileNumber.length > 0 && formData.mobileNumber.length < 10 && (
@@ -593,8 +521,8 @@ const ApplyCertificate = () => {
           <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
             <button 
               type="submit" 
-              disabled={submitting || isStockZero || isSubZeroFor2Year || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))}
-              style={{ padding: '0.75rem 2rem', backgroundColor: (submitting || isStockZero || isSubZeroFor2Year || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))) ? '#cbd5e1' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: (submitting || isStockZero || isSubZeroFor2Year || (formData.validity !== '' && quota !== null && ((formData.validity === '1 Year' && quota.remainingQuota <= 0) || (formData.validity === '2 Years' && quota.remainingQuota2Year <= 0)))) ? 'not-allowed' : 'pointer', fontSize: '1rem' }}
+              disabled={submitting || isStockZero || isSubZeroFor2Year}
+              style={{ padding: '0.75rem 2rem', backgroundColor: (submitting || isStockZero || isSubZeroFor2Year) ? '#cbd5e1' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: (submitting || isStockZero || isSubZeroFor2Year) ? 'not-allowed' : 'pointer', fontSize: '1rem' }}
             >
               {submitting ? 'Submitting...' : 'Submit Application'}
             </button>
