@@ -221,7 +221,7 @@ const ApplyCertificate = () => {
         vldSerial: vldExists ? 'This VLD S.No is already registered.' : '',
         vehicleNo: vehicleExists ? 'This vehicle number is already registered.' : ''
       });
-    }, 200);
+    }, 0);
 
     return () => clearTimeout(timer);
   }, [formData.imei, formData.vldSerial, formData.vehicleNo, backendUrl]);
