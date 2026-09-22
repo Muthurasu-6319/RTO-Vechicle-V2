@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Award, Upload, CheckCircle, Search, Clock, FileText, Trash2, Eye, User } from 'lucide-react';
+import { Award, Upload, CheckCircle, Search, Clock, FileText, Trash2, Eye, User, XCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import UploadButton from '../../components/UploadButton';
 import ApplicationDetailsModal from '../../components/ApplicationDetailsModal';
@@ -190,6 +190,40 @@ const Certificates = () => {
     }
   };
 
+  const handleRtoReject = async (id: string) => {
+    if (!window.confirm('Are you sure you want to reject RTO approval and request user confirmation again?')) return;
+    let rejected = false;
+    try {
+      const res = await fetch(`${backendUrl}/api/applications/${id}/rto-reject`, {
+        method: 'PUT'
+      });
+      if (res.ok) {
+        rejected = true;
+      }
+    } catch (err) {
+      console.warn('Backend rto-reject failed, trying Firestore Web SDK fallback', err);
+    }
+
+    if (!rejected && db) {
+      try {
+        await updateDoc(doc(db, 'applications', id), {
+          status: 'TempCertUploaded',
+          rtoRejectedAt: new Date().toISOString()
+        });
+        rejected = true;
+      } catch (e) {
+        console.error('Firestore fallback rto-reject error:', e);
+      }
+    }
+
+    if (rejected) {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      fetchApplications();
+    } else {
+      alert('Failed to reject RTO approval.');
+    }
+  };
+
   const filteredApps = (applications || []).filter(app => {
     if (!app) return false;
     const q = (searchQuery || '').toLowerCase();
@@ -353,6 +387,7 @@ const Certificates = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>#</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Upload Certificate</th>
+                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>No Option</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO</th>
@@ -398,6 +433,17 @@ const Certificates = () => {
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
                         >
                           <Upload size={14} /> Upload Vahan Cert
+                        </button>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
+                      {app.status === 'RTOApproved' && (
+                        <button 
+                          onClick={() => handleRtoReject(app.id)}
+                          title="Reject user confirmation and reset Yes button for user"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
+                        >
+                          <XCircle size={15} /> No
                         </button>
                       )}
                     </td>

@@ -818,6 +818,22 @@ app.put('/api/applications/:id/rto-approve', async (req, res) => {
   }
 });
 
+// Admin clicks No (reverts RTO approval back to TempCertUploaded so user can approve again)
+app.put('/api/applications/:id/rto-reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('applications').doc(id).update({
+      status: 'TempCertUploaded',
+      rtoRejectedAt: new Date().toISOString()
+    });
+    cache.del('all_applications');
+    res.json({ message: 'RTO approval rejected successfully' });
+  } catch (error) {
+    console.error('Error RTO rejecting:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin Uploads Vahan Certificate
 app.put('/api/applications/:id/vahan-cert', async (req, res) => {
   try {
