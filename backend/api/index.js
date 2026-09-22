@@ -511,7 +511,14 @@ app.delete('/api/users/:uid', async (req, res) => {
 app.get('/api/stats/admin', async (req, res) => {
   try {
     const { manufacturer } = req.query;
-    const appsSnapshot = await db.collection('applications').get();
+    const [appsSnapshot, usersSnapshot, ordersSnapshot, subsSnapshot, stockDoc] = await Promise.all([
+      db.collection('applications').get(),
+      db.collection('users').get(),
+      db.collection('orders').get(),
+      db.collection('subscriptions').get(),
+      db.collection('settings').doc('dashboard').get()
+    ]);
+
     let totalApps = 0;
     let pendingApps = 0;
     let certifiedApps = 0;
@@ -529,14 +536,27 @@ app.get('/api/stats/admin', async (req, res) => {
       if (['Installed', 'TempCertUploaded', 'RTOApproved'].includes(st)) installedApps++;
     });
 
-    const usersSnapshot = await db.collection('users').count().get();
-    const totalUsers = usersSnapshot.data().count;
+    let totalUsers = 0;
+    usersSnapshot.forEach(doc => {
+      const u = doc.data();
+      if (u.role !== 'admin') totalUsers++;
+    });
 
-    const ordersSnapshot = await db.collection('orders').count().get();
-    const totalOrders = ordersSnapshot.data().count;
+    let totalOrders = 0;
+    let totalOrderQuantity = 0;
+    ordersSnapshot.forEach(doc => {
+      const o = doc.data();
+      totalOrders++;
+      totalOrderQuantity += Number(o.quantity || 0);
+    });
 
-    const stockDoc = await db.collection('settings').doc('dashboard').get();
+    let totalSubscriptions = 0;
+    subsSnapshot.forEach(() => {
+      totalSubscriptions++;
+    });
+
     const deviceStock = stockDoc.exists ? (stockDoc.data().deviceStock || 0) : 0;
+    const balanceStock = Math.max(0, totalOrderQuantity - totalApps);
 
     const statsData = {
       totalUsers,
@@ -545,8 +565,10 @@ app.get('/api/stats/admin', async (req, res) => {
       certificatesIssued: certifiedApps,
       installed: installedApps,
       totalOrders,
+      totalOrderQuantity,
+      subscriptions: totalSubscriptions,
       deviceStock,
-      subscriptions: 0
+      balanceStock
     };
     
     res.json(statsData);

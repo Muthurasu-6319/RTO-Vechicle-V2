@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, FileText, CheckCircle, Package, Activity, CreditCard, HardDrive, Wrench } from 'lucide-react';
 import { db } from '../../firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -11,6 +11,7 @@ const Dashboard = () => {
     certificatesIssued: 0,
     installed: 0,
     totalOrders: 0,
+    totalOrderQuantity: 0,
     deviceStock: 0,
     subscriptions: 0
   });
@@ -22,8 +23,13 @@ const Dashboard = () => {
   const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
 
   useEffect(() => {
+    let unsubscribeUsers: () => void = () => {};
+    let unsubscribeApps: () => void = () => {};
+    let unsubscribeOrders: () => void = () => {};
+    let unsubscribeSubs: () => void = () => {};
+
+    // 1. Initial API Fetch
     const fetchStats = async () => {
-      let fetchedFromBackend = false;
       try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         const url = adminManufacturer 
@@ -34,53 +40,72 @@ const Dashboard = () => {
         if (res.ok) {
           const data = await res.json();
           if (data && !data.error) {
-            setStats(data);
-            fetchedFromBackend = true;
+            setStats(prev => ({ ...prev, ...data }));
           }
         }
       } catch (err) {
-        console.warn('Backend stats fetch failed, using client-side Firestore fallback');
+        console.warn('Backend stats fetch warning, using Firestore Web SDK real-time sync', err);
       }
+    };
+    fetchStats();
 
-      // Fallback: Query collections directly from client-side Firestore
-      if (!fetchedFromBackend && db) {
-        try {
-          const [usersSnap, appsSnap, ordersSnap, subsSnap, stockDoc] = await Promise.all([
-            getDocs(collection(db, 'users')),
-            getDocs(collection(db, 'applications')),
-            getDocs(collection(db, 'orders')),
-            getDocs(collection(db, 'subscriptions')),
-            getDoc(doc(db, 'settings', 'dashboard'))
-          ]);
+    // 2. Real-Time Firestore Web SDK Sync (Updates live on data add (+) or delete (-))
+    if (db) {
+      try {
+        unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+          const usersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          const nonAdminUsers = usersList.filter((u: any) => u.role !== 'admin');
+          setStats(prev => ({ ...prev, totalUsers: nonAdminUsers.length }));
+        });
 
-          let allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        unsubscribeApps = onSnapshot(collection(db, 'applications'), (snapshot) => {
+          let allApps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
           if (adminManufacturer) {
             allApps = allApps.filter((app: any) => 
               (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase()
             );
           }
-
           const pendingApps = allApps.filter((app: any) => (app.status || 'Pending') === 'Pending').length;
           const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
           const installedApps = allApps.filter((app: any) => ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)).length;
-          const deviceStock = stockDoc.exists() ? (stockDoc.data()?.deviceStock || 0) : 0;
-
-          setStats({
-            totalUsers: usersSnap.size,
+          
+          setStats(prev => ({
+            ...prev,
             applications: allApps.length,
             pendingReview: pendingApps,
             certificatesIssued: certifiedApps,
-            installed: installedApps,
-            totalOrders: ordersSnap.size,
-            deviceStock: deviceStock,
-            subscriptions: subsSnap.size
-          });
-        } catch (err) {
-          console.error('Error fetching fallback stats:', err);
-        }
+            installed: installedApps
+          }));
+        });
+
+        unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+          const ordersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          const totalOrderQty = ordersList.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+          setStats(prev => ({
+            ...prev,
+            totalOrders: ordersList.length,
+            totalOrderQuantity: totalOrderQty
+          }));
+        });
+
+        unsubscribeSubs = onSnapshot(collection(db, 'subscriptions'), (snapshot) => {
+          const subsList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          setStats(prev => ({
+            ...prev,
+            subscriptions: subsList.length
+          }));
+        });
+      } catch (err) {
+        console.error('Real-time Firestore stats listener error:', err);
       }
+    }
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeApps();
+      unsubscribeOrders();
+      unsubscribeSubs();
     };
-    fetchStats();
   }, [adminManufacturer]);
 
   // Standard Admin View: 3 Cards Only (Applications, Certificates Issued, Installed)
@@ -234,7 +259,7 @@ const Dashboard = () => {
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Balance Stock</h3>
             <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {(stats.totalOrders + stats.subscriptions) - stats.certificatesIssued}
+              {Math.max(0, (stats.totalOrderQuantity || 0) - (stats.applications || 0))}
             </p>
           </div>
         </div>
