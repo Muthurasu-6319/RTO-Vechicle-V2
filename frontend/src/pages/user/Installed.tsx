@@ -203,10 +203,7 @@ const Installed = () => {
                             <Clock size={14} /> Admin Review
                           </span>
                         )}
-                        {app.status === 'Installed' && (
-                          <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Waiting</span>
-                        )}
-                        {app.status === 'TempCertUploaded' && (
+                        {(app.status === 'Installed' || app.status === 'TempCertUploaded') && (
                           <button
                             onClick={() => handleRtoApprove(app.id)}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}

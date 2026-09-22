@@ -191,7 +191,7 @@ const Certificates = () => {
   };
 
   const handleRtoReject = async (id: string) => {
-    if (!window.confirm('Are you sure you want to reject RTO approval and request user confirmation again?')) return;
+    if (!window.confirm('Are you sure you want to change status to Installed?')) return;
     let rejected = false;
     try {
       const res = await fetch(`${backendUrl}/api/applications/${id}/rto-reject`, {
@@ -207,7 +207,7 @@ const Certificates = () => {
     if (!rejected && db) {
       try {
         await updateDoc(doc(db, 'applications', id), {
-          status: 'TempCertUploaded',
+          status: 'Installed',
           rtoRejectedAt: new Date().toISOString()
         });
         rejected = true;
@@ -220,7 +220,7 @@ const Certificates = () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       fetchApplications();
     } else {
-      alert('Failed to reject RTO approval.');
+      alert('Failed to update status to Installed.');
     }
   };
 
