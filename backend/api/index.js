@@ -597,13 +597,16 @@ app.post('/api/applications/check-unique', async (req, res) => {
     }
 
     if (imei) {
-      result.imeiExists = apps.some(a => a.imei === imei);
+      const cleanImei = imei.trim();
+      result.imeiExists = apps.some(a => (a.imei || '').trim() === cleanImei);
     }
     if (vldSerial) {
-      result.vldExists = apps.some(a => a.vldSerial === vldSerial);
+      const cleanVld = vldSerial.trim();
+      result.vldExists = apps.some(a => (a.vldSerial || '').trim() === cleanVld);
     }
     if (vehicleNo) {
-      result.vehicleExists = apps.some(a => (a.vehicleNo || '').toUpperCase() === (vehicleNo || '').toUpperCase());
+      const cleanVehicle = vehicleNo.replace(/\s+/g, '').toUpperCase();
+      result.vehicleExists = apps.some(a => (a.vehicleNo || '').replace(/\s+/g, '').toUpperCase() === cleanVehicle);
     }
 
     res.json(result);
@@ -625,13 +628,18 @@ app.post('/api/applications', async (req, res) => {
     }
 
     // Check if IMEI already exists
-    if (data.imei && apps.some(a => a.imei === data.imei)) {
-      return res.status(400).json({ error: 'This IMEI number has already been registered.' });
+    if (data.imei && apps.some(a => (a.imei || '').trim() === data.imei.trim())) {
+      return res.status(400).json({ error: 'This IMEI number is already registered.' });
+    }
+
+    // Check if Vehicle No already exists
+    if (data.vehicleNo && apps.some(a => (a.vehicleNo || '').replace(/\s+/g, '').toUpperCase() === data.vehicleNo.replace(/\s+/g, '').toUpperCase())) {
+      return res.status(400).json({ error: 'This vehicle number is already registered.' });
     }
 
     // Check if VLD Serial already exists
-    if (data.vldSerial && apps.some(a => a.vldSerial === data.vldSerial)) {
-      return res.status(400).json({ error: 'This VLD S.No has already been registered.' });
+    if (data.vldSerial && apps.some(a => (a.vldSerial || '').trim() === data.vldSerial.trim())) {
+      return res.status(400).json({ error: 'This VLD S.No is already registered.' });
     }
 
     data.status = 'Pending';

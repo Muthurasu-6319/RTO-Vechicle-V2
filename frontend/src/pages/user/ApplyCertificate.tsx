@@ -185,9 +185,9 @@ const ApplyCertificate = () => {
         if (res.ok) {
           const data = await res.json();
           setErrors({
-            imei: data.imeiExists ? 'IMEI already exists in the system.' : '',
-            vldSerial: data.vldExists ? 'VLD S.No already exists in the system.' : '',
-            vehicleNo: data.vehicleExists ? 'Vehicle No already exists in the system.' : ''
+            imei: data.imeiExists ? 'This IMEI number is already registered.' : '',
+            vldSerial: data.vldExists ? 'This VLD S.No is already registered.' : '',
+            vehicleNo: data.vehicleExists ? 'This vehicle number is already registered.' : ''
           });
         }
       } catch (err) {
@@ -301,8 +301,16 @@ const ApplyCertificate = () => {
       return;
     }
     
-    if (errors.imei || errors.vldSerial || errors.vehicleNo) {
-      alert('Please fix the errors before submitting. Some items already exist.');
+    if (errors.imei) {
+      alert(errors.imei);
+      return;
+    }
+    if (errors.vldSerial) {
+      alert(errors.vldSerial);
+      return;
+    }
+    if (errors.vehicleNo) {
+      alert(errors.vehicleNo);
       return;
     }
     
