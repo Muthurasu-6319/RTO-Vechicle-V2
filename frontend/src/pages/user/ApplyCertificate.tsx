@@ -154,19 +154,52 @@ const ApplyCertificate = () => {
   // Real-time Validation for Uniqueness (IMEI No, VLD S.No, Vehicle No)
   useEffect(() => {
     const timer = setTimeout(async () => {
-      const payload = {
-        imei: formData.imei.trim().length >= 5 ? formData.imei.trim() : '',
-        vldSerial: formData.vldSerial.trim().length >= 3 ? formData.vldSerial.trim() : '',
-        vehicleNo: formData.vehicleNo.trim().length >= 3 ? formData.vehicleNo.trim() : ''
-      };
+      const rawImei = formData.imei.trim();
+      const rawVld = formData.vldSerial.trim();
+      const rawVehicle = formData.vehicleNo.trim();
 
-      if (!payload.imei && !payload.vldSerial && !payload.vehicleNo) {
+      const cleanImei = rawImei.length >= 5 ? rawImei.replace(/\s/g, '').toLowerCase() : '';
+      const cleanVld = rawVld.length >= 3 ? rawVld.replace(/\s/g, '').toLowerCase() : '';
+      const cleanVehicle = rawVehicle.length >= 3 ? rawVehicle.replace(/[\s\-_]/g, '').toUpperCase() : '';
+
+      if (!cleanImei && !cleanVld && !cleanVehicle) {
         setErrors({ imei: '', vldSerial: '', vehicleNo: '' });
         return;
       }
 
-      let checked = false;
+      let imeiExists = false;
+      let vldExists = false;
+      let vehicleExists = false;
+
+      // 1. Check via client-side Firestore Web SDK (direct connection to applications collection)
+      if (db) {
+        try {
+          const appsRef = collection(db, 'applications');
+          const snapshot = await getDocs(appsRef);
+          const allApps = snapshot.docs.map(doc => doc.data());
+
+          imeiExists = !!cleanImei && allApps.some((a: any) => {
+            const val = String(a.imei || a.imeiNo || a.IMEI || a.imeiNumber || '').replace(/\s/g, '').toLowerCase();
+            return val && val === cleanImei;
+          });
+
+          vldExists = !!cleanVld && allApps.some((a: any) => {
+            const val = String(a.vldSerial || a.vldNo || a.vldSerialNo || a.serialNo || '').replace(/\s/g, '').toLowerCase();
+            return val && val === cleanVld;
+          });
+
+          vehicleExists = !!cleanVehicle && allApps.some((a: any) => {
+            const val = String(a.vehicleNo || a.regNo || a.registrationNo || a.vehicleNumber || a.vehicle_no || '').replace(/[\s\-_]/g, '').toUpperCase();
+            return val && val === cleanVehicle;
+          });
+        } catch (e) {
+          console.warn('Firestore uniqueness check error:', e);
+        }
+      }
+
+      // 2. Also check Backend API
       try {
+        const payload = { imei: rawImei, vldSerial: rawVld, vehicleNo: rawVehicle };
         const res = await fetch(`${backendUrl}/api/applications/check-unique`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -175,41 +208,20 @@ const ApplyCertificate = () => {
         
         if (res.ok) {
           const data = await res.json();
-          setErrors({
-            imei: data.imeiExists ? 'This IMEI number is already registered.' : '',
-            vldSerial: data.vldExists ? 'This VLD S.No is already registered.' : '',
-            vehicleNo: data.vehicleExists ? 'This vehicle number is already registered.' : ''
-          });
-          checked = true;
+          if (data.imeiExists) imeiExists = true;
+          if (data.vldExists) vldExists = true;
+          if (data.vehicleExists) vehicleExists = true;
         }
       } catch (err) {
-        console.warn('Backend uniqueness check failed, using Firestore Web SDK fallback', err);
+        console.warn('Backend uniqueness check error:', err);
       }
 
-      if (!checked && db) {
-        try {
-          const appsRef = collection(db, 'applications');
-          const snapshot = await getDocs(appsRef);
-          const allApps = snapshot.docs.map(doc => doc.data());
-
-          const cleanImei = payload.imei.toLowerCase();
-          const cleanVld = payload.vldSerial.toLowerCase();
-          const cleanVehicle = payload.vehicleNo.replace(/[\s\-_]/g, '').toUpperCase();
-
-          const imeiExists = !!cleanImei && allApps.some((a: any) => String(a.imei || a.imeiNo || a.IMEI || '').trim().toLowerCase() === cleanImei);
-          const vldExists = !!cleanVld && allApps.some((a: any) => String(a.vldSerial || a.vldNo || a.vldSerialNo || '').trim().toLowerCase() === cleanVld);
-          const vehicleExists = !!cleanVehicle && allApps.some((a: any) => String(a.vehicleNo || a.regNo || a.registrationNo || '').replace(/[\s\-_]/g, '').toUpperCase() === cleanVehicle);
-
-          setErrors({
-            imei: imeiExists ? 'This IMEI number is already registered.' : '',
-            vldSerial: vldExists ? 'This VLD S.No is already registered.' : '',
-            vehicleNo: vehicleExists ? 'This vehicle number is already registered.' : ''
-          });
-        } catch (e) {
-          console.error('Firestore uniqueness check fallback error:', e);
-        }
-      }
-    }, 300);
+      setErrors({
+        imei: imeiExists ? 'This IMEI number is already registered.' : '',
+        vldSerial: vldExists ? 'This VLD S.No is already registered.' : '',
+        vehicleNo: vehicleExists ? 'This vehicle number is already registered.' : ''
+      });
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [formData.imei, formData.vldSerial, formData.vehicleNo, backendUrl]);
