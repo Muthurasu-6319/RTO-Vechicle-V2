@@ -260,7 +260,7 @@ const Subscriptions = () => {
       alert("No data available to download.");
       return;
     }
-    const headers = ["User,User Email,Consumer Name,Subscription Count,Date,Approved"];
+    const headers = ["User,User Email,Payment Details,Subscription Count,Date,Approved"];
     const rows = subscriptions.map(sub => {
       return `"${sub.userName || ''}","${sub.userEmail || ''}","${sub.consumerName || ''}","${sub.subscriptionCount || ''}","${sub.date || ''}","${sub.approved ? 'Approved' : 'Pending'}"`;
     });
@@ -287,7 +287,7 @@ const Subscriptions = () => {
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '0.5rem', width: '250px', flexShrink: 0 }}>
             <Search size={18} color="#64748b" style={{ marginRight: '0.5rem' }} />
             <input 
-              type="text" placeholder="Search Consumer, User..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              type="text" placeholder="Search Payment Details, User..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               style={{ border: 'none', outline: 'none', width: '100%', backgroundColor: 'transparent' }}
             />
           </div>
@@ -363,7 +363,7 @@ const Subscriptions = () => {
                 <tr style={{ borderBottom: '2px solid #e2e8f0', color: 'var(--text-secondary)' }}>
                   <th style={{ padding: '1rem 0.5rem' }}>#</th>
                   <th style={{ padding: '1rem 0.5rem' }}>User</th>
-                  <th style={{ padding: '1rem 0.5rem' }}>Consumer Name</th>
+                  <th style={{ padding: '1rem 0.5rem' }}>Payment Details</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Subscription Count</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Date</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Invoice</th>
@@ -449,7 +449,7 @@ const Subscriptions = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Consumer Name</label>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.875rem' }}>Payment Details</label>
                   <input type="text" name="consumerName" value={formData.consumerName} onChange={handleChange} required style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }} />
                 </div>
 

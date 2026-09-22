@@ -103,7 +103,7 @@ const Subscription = () => {
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0', color: 'var(--text-secondary)' }}>
                     <th style={{ padding: '1rem 0.5rem' }}>#</th>
-                    <th style={{ padding: '1rem 0.5rem' }}>Consumer Name</th>
+                    <th style={{ padding: '1rem 0.5rem' }}>Payment Details</th>
                     <th style={{ padding: '1rem 0.5rem' }}>Subscription Count</th>
                     <th style={{ padding: '1rem 0.5rem' }}>Date</th>
                     <th style={{ padding: '1rem 0.5rem' }}>Invoice</th>
