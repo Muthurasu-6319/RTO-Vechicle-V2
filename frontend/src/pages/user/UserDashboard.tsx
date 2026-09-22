@@ -22,7 +22,7 @@ const UserDashboard = () => {
 
   const certifiedCount = applications.filter((app: any) => app.status === 'Certified').length;
 
-  const usedBalanceStock = applications.filter((app: any) => (app.validity || '').trim() !== '2 Years').length; 
+  const usedBalanceStock = applications.length; // Every application deducts 1 count from Received Orders Total Stock
   const usedAdditionalSub = applications.filter((app: any) => (app.validity || '').trim() === '2 Years').length;
 
   const remainingQuota = Math.max(0, totalQuota1Year - usedBalanceStock);

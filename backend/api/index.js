@@ -1268,18 +1268,17 @@ app.get('/api/users/:uid/quota', async (req, res) => {
       }
     });
 
-    // Used 1-Year (applications with validity '1 Year')
+    // Used 1-Year / Received Orders Stock (every application deducts 1 count)
     let used1Year = 0;
-    // Used 2-Year (applications with validity '2 Years')
+    // Used 2-Year / Additional Subscription (2 Years validity applications deduct 1 count)
     let used2Year = 0;
     try {
       const allApps = await getApplicationsCached();
       allApps.forEach(app => {
         if (app.userId === uid || (userEmail && app.userEmail === userEmail)) {
+          used1Year++; // Every application deducts 1 from Received Orders Total Stock
           if ((app.validity || '').trim() === '2 Years') {
-            used2Year++;
-          } else {
-            used1Year++;
+            used2Year++; // 2 Years validity ALSO deducts 1 from Additional Subscription
           }
         }
       });
