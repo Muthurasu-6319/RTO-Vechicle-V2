@@ -130,15 +130,22 @@ const Orders = () => {
     let purchases: any[] = [];
     let ordersList: any[] = [];
     let currentMfgList: string[] = [];
+    let appsList: any[] = [];
     try {
-      const [ordersRes, usersRes, settingsRes, statsRes, entriesRes] = await Promise.all([
+      const [ordersRes, usersRes, settingsRes, statsRes, entriesRes, appsRes] = await Promise.all([
         fetch(`${backendUrl}/api/orders`),
         fetch(`${backendUrl}/api/users`),
         fetch(`${backendUrl}/api/settings`),
         fetch(`${backendUrl}/api/stats/manufacturer-stock`),
-        fetch(`${backendUrl}/api/purchase-entries`)
+        fetch(`${backendUrl}/api/purchase-entries`),
+        fetch(`${backendUrl}/api/applications`)
       ]);
       
+      if (appsRes.ok) {
+        const appsData = await appsRes.json();
+        if (Array.isArray(appsData)) appsList = appsData;
+      }
+
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         currentMfgList = settingsData.manufacturers || [];
@@ -151,7 +158,20 @@ const Orders = () => {
         if (Array.isArray(ordersData) && Array.isArray(usersData)) {
           ordersList = ordersData;
           setOrders(processAndSyncOrders(ordersData));
-          setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+          
+          const usersWithStock = usersData.filter((u: any) => u.role !== 'admin').map((u: any) => {
+            const userEmail = u.email || '';
+            const totalStock = ordersData.filter((o: any) => o.userId === u.id || (userEmail && o.userEmail === userEmail)).reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+            const usedApps = appsList.filter((a: any) => a.userId === u.id || (userEmail && a.userEmail === userEmail)).length;
+            const balanceStock = Math.max(0, totalStock - usedApps);
+            return {
+              ...u,
+              balanceStock,
+              badge: `Balance Stock: ${balanceStock}`
+            };
+          });
+
+          setUsers(usersWithStock);
           fetchedFromBackend = true;
         }
       }
@@ -170,11 +190,12 @@ const Orders = () => {
 
     if (!fetchedFromBackend && db) {
       try {
-        const [ordersSnap, usersSnap, settingsDoc, entriesSnap] = await Promise.all([
+        const [ordersSnap, usersSnap, settingsDoc, entriesSnap, appsSnap] = await Promise.all([
           getDocs(collection(db, 'orders')),
           getDocs(collection(db, 'users')),
           getDoc(doc(db, 'settings', 'config')),
-          getDocs(collection(db, 'purchaseEntries'))
+          getDocs(collection(db, 'purchaseEntries')),
+          getDocs(collection(db, 'applications'))
         ]);
 
         if (settingsDoc.exists()) {
@@ -183,13 +204,27 @@ const Orders = () => {
         }
 
         const allOrders = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setOrders(processAndSyncOrders(allOrders));
 
         const allEntries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setStockMap(computeStockMap(allEntries, allOrders, currentMfgList));
 
-        const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
+        const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+          .filter((u: any) => u.role !== 'admin')
+          .map((u: any) => {
+            const userEmail = u.email || '';
+            const totalStock = allOrders.filter((o: any) => o.userId === u.id || (userEmail && o.userEmail === userEmail)).reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+            const usedApps = allApps.filter((a: any) => a.userId === u.id || (userEmail && a.userEmail === userEmail)).length;
+            const balanceStock = Math.max(0, totalStock - usedApps);
+            return {
+              ...u,
+              balanceStock,
+              badge: `Balance Stock: ${balanceStock}`
+            };
+          });
+
+        setUsers(allUsers);
       } catch (e) {
         console.error('Firestore orders fallback failed:', e);
       }

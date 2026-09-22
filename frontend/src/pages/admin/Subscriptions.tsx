@@ -34,20 +34,41 @@ const Subscriptions = () => {
   const fetchData = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
+    let appsList: any[] = [];
     try {
-      const [subsRes, usersRes, settingsRes, statsRes] = await Promise.all([
+      const [subsRes, usersRes, settingsRes, statsRes, appsRes] = await Promise.all([
         fetch(`${backendUrl}/api/subscriptions`),
         fetch(`${backendUrl}/api/users`),
         fetch(`${backendUrl}/api/settings`),
-        fetch(`${backendUrl}/api/stats/manufacturer-stock`)
+        fetch(`${backendUrl}/api/stats/manufacturer-stock`),
+        fetch(`${backendUrl}/api/applications`)
       ]);
       
+      if (appsRes.ok) {
+        const appsData = await appsRes.json();
+        if (Array.isArray(appsData)) appsList = appsData;
+      }
+
       if (subsRes.ok && usersRes.ok) {
         const subsData = await subsRes.json();
         const usersData = await usersRes.json();
         if (Array.isArray(subsData) && Array.isArray(usersData)) {
           setSubscriptions(subsData);
-          setUsers(usersData.filter((u: any) => u.role !== 'admin'));
+          
+          const usersWithSubBalance = usersData.filter((u: any) => u.role !== 'admin').map((u: any) => {
+            const userEmail = u.email || '';
+            const targetId = u.id || u.uid;
+            const totalQuota2Year = subsData.filter((s: any) => s.userId === targetId || (userEmail && s.userEmail === userEmail)).reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
+            const usedQuota2Year = appsList.filter((a: any) => (a.userId === targetId || (userEmail && a.userEmail === userEmail)) && (a.validity || '').trim() === '2 Years').length;
+            const balanceSub = Math.max(0, totalQuota2Year - usedQuota2Year);
+            return {
+              ...u,
+              balanceSub,
+              badge: `Balance Sub: ${balanceSub}`
+            };
+          });
+
+          setUsers(usersWithSubBalance);
           fetchedFromBackend = true;
         }
       }
@@ -67,18 +88,34 @@ const Subscriptions = () => {
 
     if (!fetchedFromBackend && db) {
       try {
-        const [subsSnap, usersSnap, settingsDoc] = await Promise.all([
+        const [subsSnap, usersSnap, settingsDoc, appsSnap] = await Promise.all([
           getDocs(collection(db, 'subscriptions')),
           getDocs(collection(db, 'users')),
-          getDoc(doc(db, 'settings', 'config'))
+          getDoc(doc(db, 'settings', 'config')),
+          getDocs(collection(db, 'applications'))
         ]);
 
         const allSubs = subsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         allSubs.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setSubscriptions(allSubs);
 
+        const allApps = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setUsers(allUsers.filter((u: any) => u.role !== 'admin'));
+
+        const usersWithSubBalance = allUsers.filter((u: any) => u.role !== 'admin').map((u: any) => {
+          const userEmail = u.email || '';
+          const targetId = u.id || u.uid;
+          const totalQuota2Year = allSubs.filter((s: any) => s.userId === targetId || (userEmail && s.userEmail === userEmail)).reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
+          const usedQuota2Year = allApps.filter((a: any) => (a.userId === targetId || (userEmail && a.userEmail === userEmail)) && (a.validity || '').trim() === '2 Years').length;
+          const balanceSub = Math.max(0, totalQuota2Year - usedQuota2Year);
+          return {
+            ...u,
+            balanceSub,
+            badge: `Balance Sub: ${balanceSub}`
+          };
+        });
+
+        setUsers(usersWithSubBalance);
 
         if (settingsDoc.exists()) {
           setManufacturers(settingsDoc.data()?.manufacturers || []);
