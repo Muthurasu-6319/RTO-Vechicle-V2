@@ -19,14 +19,15 @@ const Applications = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
+  const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+  const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+  const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
+  const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+  const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
+
   const fetchApplications = async () => {
     setLoading(true);
     let fetchedFromBackend = false;
-    const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
-    const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
-    const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
-    const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
-    const isStandard = !isSuperAdmin && (adminRole.includes('standard') || !!adminManufacturer);
 
     const matchesManufacturer = (appManu: string) => {
       if (isStandard) {
