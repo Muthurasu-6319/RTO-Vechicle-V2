@@ -387,11 +387,11 @@ const Certificates = () => {
                   <th style={{ padding: '1rem 0.5rem' }}>#</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Vehicle No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Upload Certificate</th>
-                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>No Option</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Owner Name</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Customer Mobile Number</th>
                   <th style={{ padding: '1rem 0.5rem' }}>RTO</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Status</th>
+                  <th style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>No Option</th>
                   <th style={{ padding: '1rem 0.5rem' }}>Username</th>
                   <th style={{ padding: '1rem 0.5rem' }}>IMEI No</th>
                   <th style={{ padding: '1rem 0.5rem' }}>VLD S.No</th>
@@ -436,17 +436,6 @@ const Certificates = () => {
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
-                      {app.status === 'RTOApproved' && (
-                        <button 
-                          onClick={() => handleRtoReject(app.id)}
-                          title="Reject user confirmation and reset Yes button for user"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
-                        >
-                          <XCircle size={15} /> No
-                        </button>
-                      )}
-                    </td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.customerName}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{getMobileNumber(app)}</td>
                     <td style={{ padding: '1rem 0.5rem' }}>{app.rtoOffice}</td>
@@ -459,6 +448,17 @@ const Certificates = () => {
                       }}>
                         {app.status}
                       </span>
+                    </td>
+                    <td style={{ padding: '1rem 0.5rem', textAlign: 'center' }}>
+                      {app.status === 'RTOApproved' && (
+                        <button 
+                          onClick={() => handleRtoReject(app.id)}
+                          title="Reject user confirmation and reset Yes button for user"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem' }}
+                        >
+                          <XCircle size={15} /> No
+                        </button>
+                      )}
                     </td>
                     <td style={{ padding: '1rem 0.5rem', minWidth: '160px' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
