@@ -153,7 +153,10 @@ app.post('/api/scan-barcode', async (req, res) => {
     const { imageUrl } = req.body;
     if (!imageUrl) return res.status(400).json({ error: 'No image URL provided' });
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    let apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      apiKey = apiKey.replace(/^"|"$/g, '').trim();
+    }
     if (!apiKey) {
       console.error('OCR Error: GEMINI_API_KEY environment variable is not configured.');
       return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on backend server.' });
@@ -168,24 +171,21 @@ app.post('/api/scan-barcode', async (req, res) => {
     const arrayBuffer = await imageResp.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const rawMimeType = imageResp.headers.get('content-type') || 'image/jpeg';
-    const mimeType = rawMimeType.split(';')[0].trim();
+    let mimeType = rawMimeType.split(';')[0].trim().toLowerCase();
+    if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(mimeType)) {
+      mimeType = 'image/jpeg';
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Try gemini-1.5-flash first, fallback to gemini-2.0-flash
-    let model;
-    try {
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    } catch (e) {
-      model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    }
 
     const prompt = `Inspect this image of a device barcode/label carefully.
 1. Find the 15-digit IMEI number (e.g., 864201049281726).
 2. Find the VLD Serial Number (S.No / Serial Number, e.g., IRSN..., HITECH..., or similar).
+3. Find or infer the Manufacturer name (e.g., MERCYDA, HITECH, etc.).
 
 Return ONLY a valid JSON object without any markdown formatting or surrounding text.
-Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456"}`;
+Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456", "manufacturer": "MERCYDA"}`;
 
     const imageParts = [
       {
@@ -196,25 +196,37 @@ Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456"}`;
       }
     ];
 
+    const modelCandidates = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
     let responseText = '';
-    try {
-      const result = await model.generateContent([prompt, ...imageParts]);
-      responseText = result.response.text();
-    } catch (apiErr) {
-      console.warn('Gemini 1.5 Flash OCR failed, trying gemini-2.0-flash fallback:', apiErr.message);
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-      const fallbackResult = await fallbackModel.generateContent([prompt, ...imageParts]);
-      responseText = fallbackResult.response.text();
+    let lastError = null;
+
+    for (const modelName of modelCandidates) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([prompt, ...imageParts]);
+        responseText = result.response.text();
+        if (responseText) break;
+      } catch (err) {
+        console.warn(`Gemini model (${modelName}) failed:`, err.message);
+        lastError = err;
+      }
     }
 
-    // Clean up markdown wrappers
-    const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    if (!responseText) {
+      throw lastError || new Error('All Gemini model candidates failed to generate a response.');
+    }
 
-    let parsedData = { imei: '', vldSerial: '' };
-    try {
-      parsedData = JSON.parse(cleanedText);
-    } catch (e) {
-      console.warn('JSON parsing failed for OCR response, attempting regex extraction:', e.message);
+    let parsedData = { imei: '', vldSerial: '', manufacturer: '' };
+    
+    // Extract JSON from response text safely
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const extracted = JSON.parse(jsonMatch[0]);
+        parsedData = { ...parsedData, ...extracted };
+      } catch (e) {
+        console.warn('JSON parsing failed for matched object, using regex fallback:', e.message);
+      }
     }
 
     // Robust Regex fallback for 15-digit IMEI if missing or invalid
@@ -225,8 +237,17 @@ Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456"}`;
 
     // Regex fallback for VLD Serial Number
     if (!parsedData.vldSerial) {
-      const vldMatch = responseText.match(/\b(IRSN|IRNS|HITECH|HITEH|VLD)[A-Z0-9-]+\b/i);
-      if (vldMatch) parsedData.vldSerial = vldMatch[0];
+      const vldMatch = responseText.match(/\b(IRSN|IRNS|HITECH|HITEH|VLD)[A-Z0-9-]+\b/i) || responseText.match(/\bS\/?N[:\s]*([A-Z0-9-]+)\b/i);
+      if (vldMatch) parsedData.vldSerial = vldMatch[1] || vldMatch[0];
+    }
+
+    // Fallback detection for Manufacturer
+    if (!parsedData.manufacturer) {
+      if (/MERCYDA/i.test(responseText) || (parsedData.vldSerial && /^(IRSN|IRNS)/i.test(parsedData.vldSerial))) {
+        parsedData.manufacturer = 'Mercyda';
+      } else if (/HITECH|HITEH/i.test(responseText) || (parsedData.vldSerial && /^(HITECH|HITEH)/i.test(parsedData.vldSerial))) {
+        parsedData.manufacturer = 'Hitech';
+      }
     }
 
     res.json(parsedData);

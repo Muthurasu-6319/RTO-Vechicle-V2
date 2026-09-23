@@ -124,6 +124,7 @@ const ApplyCertificate = () => {
 
   // Logic to calculate Manufacturer based on VLD S.No
   useEffect(() => {
+    if (!formData.vldSerial) return;
     const upperVld = formData.vldSerial.toUpperCase();
     
     const getExactManu = (searchStr: string) => manufacturers.find(m => m.toUpperCase().includes(searchStr)) || '';
@@ -140,12 +141,6 @@ const ApplyCertificate = () => {
     } else if (upperVld.startsWith('HITECH') || upperVld.startsWith('HITEH')) {
       const exactHitech = getExactHitech();
       if (exactHitech && formData.manufacturer !== exactHitech) {
-        setFormData(prev => ({ ...prev, manufacturer: exactHitech }));
-      }
-    } else {
-      const exactHitech = getExactHitech();
-      const exactMercyda = getExactManu('MERCYDA');
-      if (exactHitech && (formData.manufacturer === exactMercyda || formData.manufacturer === '')) {
         setFormData(prev => ({ ...prev, manufacturer: exactHitech }));
       }
     }
@@ -268,11 +263,39 @@ const ApplyCertificate = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setFormData(prev => ({
-          ...prev,
-          imei: data.imei || prev.imei,
-          vldSerial: data.vldSerial || prev.vldSerial
-        }));
+        setFormData(prev => {
+          let updatedManu = prev.manufacturer;
+          const targetVld = data.vldSerial || prev.vldSerial;
+
+          if (data.manufacturer && manufacturers.length > 0) {
+            const matched = manufacturers.find(m => 
+              m.toUpperCase().includes(data.manufacturer.toUpperCase()) || 
+              data.manufacturer.toUpperCase().includes(m.toUpperCase())
+            );
+            if (matched) updatedManu = matched;
+          }
+
+          if (targetVld && manufacturers.length > 0) {
+            const upperVld = targetVld.toUpperCase();
+            if (upperVld.startsWith('IRSN') || upperVld.startsWith('IRNS')) {
+              const exactMercyda = manufacturers.find(m => m.toUpperCase().includes('MERCYDA'));
+              if (exactMercyda) updatedManu = exactMercyda;
+            } else if (upperVld.startsWith('HITECH') || upperVld.startsWith('HITEH')) {
+              const exactHitech = manufacturers.find(m => {
+                const u = m.toUpperCase().replace(/\s/g, '');
+                return u.includes('HITECH') || u.includes('HITEH') || u.includes('HIITECH');
+              });
+              if (exactHitech) updatedManu = exactHitech;
+            }
+          }
+
+          return {
+            ...prev,
+            imei: data.imei || prev.imei,
+            vldSerial: targetVld,
+            manufacturer: updatedManu
+          };
+        });
       } else {
         console.error('Failed to scan barcode', await res.text());
         alert('Failed to auto-scan barcode. Please enter details manually.');
