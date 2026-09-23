@@ -16,6 +16,8 @@ const Dashboard = () => {
     subscriptions: 0
   });
 
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+
   const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
   const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
   const adminManufacturer = sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '';
@@ -31,7 +33,7 @@ const Dashboard = () => {
     // 1. Initial API Fetch
     const fetchStats = async () => {
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
         const url = adminManufacturer 
           ? `${backendUrl}/api/stats/admin?manufacturer=${encodeURIComponent(adminManufacturer)}`
           : `${backendUrl}/api/stats/admin`;
@@ -71,11 +73,15 @@ const Dashboard = () => {
           
           setStats(prev => ({
             ...prev,
-            applications: allApps.length,
+            applications: pendingApps,
             pendingReview: pendingApps,
             certificatesIssued: certifiedApps,
             installed: installedApps
           }));
+
+          // Sort recent activities by createdAt descending
+          const sorted = [...allApps].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setRecentActivities(sorted.slice(0, 7));
         });
 
         unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
@@ -267,9 +273,49 @@ const Dashboard = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-        <div className="glass-panel" style={{ padding: '2rem', borderRadius: '1rem', height: '400px' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>Recent Activity</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>Activity chart and logs will be displayed here.</p>
+        <div className="glass-panel" style={{ padding: '2rem', borderRadius: '1rem', minHeight: '300px' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.25rem' }}>Recent Activity</h3>
+          {recentActivities.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No recent activity found.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #e2e8f0', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '0.75rem 1rem' }}>Vehicle No</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Customer Name</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Manufacturer</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentActivities.map((act, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{act.vehicleNo || '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>{act.customerName || '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>{act.manufacturer || '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span style={{
+                          padding: '0.25rem 0.625rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          backgroundColor: act.status === 'Certified' ? '#d1fae5' : act.status === 'Installed' ? '#dbeafe' : '#fef3c7',
+                          color: act.status === 'Certified' ? '#047857' : act.status === 'Installed' ? '#1d4ed8' : '#b45309'
+                        }}>
+                          {act.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#64748b' }}>
+                        {act.createdAt ? new Date(act.createdAt).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

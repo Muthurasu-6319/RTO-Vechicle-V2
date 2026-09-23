@@ -611,7 +611,7 @@ app.get('/api/stats/admin', async (req, res) => {
 
     const statsData = {
       totalUsers,
-      applications: totalApps,
+      applications: pendingApps,
       pendingReview: pendingApps,
       certificatesIssued: certifiedApps,
       installed: installedApps,

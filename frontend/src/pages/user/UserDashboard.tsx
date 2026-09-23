@@ -28,6 +28,11 @@ const UserDashboard = () => {
   const remainingQuota = Math.max(0, totalQuota1Year - usedBalanceStock);
   const remainingQuota2Year = Math.max(0, totalQuota2Year - usedAdditionalSub);
 
+  // Sort recent certificates by createdAt descending
+  const recentCertificates = [...applications]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 5);
+
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
@@ -86,8 +91,52 @@ const UserDashboard = () => {
       </div>
 
       <div className="glass-panel" style={{ padding: '2rem', borderRadius: '1rem' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>Recent Certificates</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>No certificates generated yet.</p>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.25rem' }}>Recent Certificates</h3>
+        {loading ? (
+          <p style={{ color: 'var(--text-secondary)' }}>Loading recent certificates...</p>
+        ) : recentCertificates.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)' }}>No certificates generated yet.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '0.75rem 1rem' }}>Vehicle No</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>IMEI No</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>VLD S.No</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Validity</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentCertificates.map((cert, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{cert.vehicleNo || '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>{cert.imei || cert.imeiNo || '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>{cert.vldSerial || cert.vldNo || '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>{cert.validity || '1 Year'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <span style={{
+                        padding: '0.25rem 0.625rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        backgroundColor: cert.status === 'Certified' ? '#d1fae5' : cert.status === 'Installed' ? '#dbeafe' : '#fef3c7',
+                        color: cert.status === 'Certified' ? '#047857' : cert.status === 'Installed' ? '#1d4ed8' : '#b45309'
+                      }}>
+                        {cert.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#64748b' }}>
+                      {cert.createdAt ? new Date(cert.createdAt).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
