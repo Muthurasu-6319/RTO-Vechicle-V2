@@ -36,23 +36,26 @@ const Orders = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   const parseOrderNumber = (orderId: string) => {
-    if (!orderId) return 999999;
+    if (!orderId) return 0;
     const num = parseInt(orderId.replace(/\D/g, ''), 10);
-    return isNaN(num) ? 999999 : num;
+    return isNaN(num) ? 0 : num;
   };
 
   const processAndSyncOrders = (list: any[]) => {
     const sorted = [...list].sort((a, b) => {
       const numA = parseOrderNumber(a.orderId);
       const numB = parseOrderNumber(b.orderId);
-      if (numA !== numB && numA !== 999999 && numB !== 999999) {
-        return numA - numB;
+      if (numA !== numB && numA !== 0 && numB !== 0) {
+        return numB - numA;
       }
-      return (a.createdAt || '').localeCompare(b.createdAt || '');
+      const dateA = a.createdAt || a.orderedDate || '';
+      const dateB = b.createdAt || b.orderedDate || '';
+      return dateB.localeCompare(dateA);
     });
 
+    const totalCount = sorted.length;
     const normalized = sorted.map((order, idx) => {
-      const expectedId = `V${String(idx + 1).padStart(3, '0')}`;
+      const expectedId = `V${String(totalCount - idx).padStart(3, '0')}`;
       if (order.orderId !== expectedId) {
         if (order.id) {
           fetch(`${backendUrl}/api/orders/${order.id}`, {
