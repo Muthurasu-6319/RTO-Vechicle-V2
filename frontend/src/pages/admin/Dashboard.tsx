@@ -29,6 +29,7 @@ const Dashboard = () => {
     let unsubscribeApps: () => void = () => {};
     let unsubscribeOrders: () => void = () => {};
     let unsubscribeSubs: () => void = () => {};
+    let unsubscribePurchases: () => void = () => {};
 
     // 1. Initial API Fetch
     const fetchStats = async () => {
@@ -51,33 +52,60 @@ const Dashboard = () => {
     };
     fetchStats();
 
+    let currentUsers: any[] = [];
+    let currentApps: any[] = [];
+    let currentOrders: any[] = [];
+    let currentPurchases: any[] = [];
+
+    const recalculateUsersBalanceStock = () => {
+      const nonAdminUsers = currentUsers.filter((u: any) => u.role !== 'admin');
+      const totalUsersBalance = nonAdminUsers.reduce((sum: number, u: any) => {
+        const userOrders = currentOrders.filter((o: any) => o.userId === u.id || o.userId === u.uid || (u.email && o.userEmail === u.email));
+        const totalStock = userOrders.reduce((s: number, o: any) => s + Number(o.quantity || 0), 0);
+        const usedApps = currentApps.filter((a: any) => a.userId === u.id || a.userId === u.uid || (u.email && a.userEmail === u.email)).length;
+        return sum + Math.max(0, totalStock - usedApps);
+      }, 0);
+
+      const totalPurchasedQty = currentPurchases.reduce((sum: number, p: any) => sum + Number(p.quantity || 0), 0);
+      const totalOrderQty = currentOrders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
+      const mfgBalanceStock = Math.max(0, totalPurchasedQty - totalOrderQty);
+
+      setStats(prev => ({ ...prev, deviceStock: totalUsersBalance, balanceStock: mfgBalanceStock }));
+    };
+
     // 2. Real-Time Firestore Web SDK Sync (Updates live on data add (+) or delete (-))
     if (db) {
       try {
         unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
           const usersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          currentUsers = usersList;
           const nonAdminUsers = usersList.filter((u: any) => u.role !== 'admin');
           setStats(prev => ({ ...prev, totalUsers: nonAdminUsers.length }));
+          recalculateUsersBalanceStock();
         });
 
         unsubscribeApps = onSnapshot(collection(db, 'applications'), (snapshot) => {
           let allApps = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          currentApps = allApps;
           if (adminManufacturer) {
             allApps = allApps.filter((app: any) => 
               (app.manufacturer || '').trim().toLowerCase() === adminManufacturer.trim().toLowerCase()
             );
           }
-          const pendingApps = allApps.filter((app: any) => (app.status || 'Pending') === 'Pending').length;
+          const pendingAppsList = allApps.filter((app: any) => (app.status || 'Pending') === 'Pending');
+          const pendingAppsCount = pendingAppsList.length;
+          const pendingReviewCount = pendingAppsList.filter((app: any) => !app.viewed && !app.isViewed && !app.adminViewed).length;
           const certifiedApps = allApps.filter((app: any) => app.status === 'Certified').length;
           const installedApps = allApps.filter((app: any) => ['Installed', 'TempCertUploaded', 'RTOApproved'].includes(app.status)).length;
           
           setStats(prev => ({
             ...prev,
-            applications: pendingApps,
-            pendingReview: pendingApps,
+            applications: pendingAppsCount,
+            pendingReview: pendingReviewCount,
             certificatesIssued: certifiedApps,
             installed: installedApps
           }));
+          recalculateUsersBalanceStock();
 
           // Sort recent activities by createdAt descending
           const sorted = [...allApps].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -86,20 +114,29 @@ const Dashboard = () => {
 
         unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
           const ordersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          currentOrders = ordersList;
           const totalOrderQty = ordersList.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0);
           setStats(prev => ({
             ...prev,
-            totalOrders: ordersList.length,
+            totalOrders: totalOrderQty,
             totalOrderQuantity: totalOrderQty
           }));
+          recalculateUsersBalanceStock();
         });
 
         unsubscribeSubs = onSnapshot(collection(db, 'subscriptions'), (snapshot) => {
           const subsList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          const totalSubCount = subsList.reduce((sum: number, s: any) => sum + Number(s.subscriptionCount || 0), 0);
           setStats(prev => ({
             ...prev,
-            subscriptions: subsList.length
+            subscriptions: totalSubCount
           }));
+        });
+
+        unsubscribePurchases = onSnapshot(collection(db, 'purchaseEntries'), (snapshot) => {
+          const purchasesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          currentPurchases = purchasesList;
+          recalculateUsersBalanceStock();
         });
       } catch (err) {
         console.error('Real-time Firestore stats listener error:', err);
@@ -111,6 +148,7 @@ const Dashboard = () => {
       unsubscribeApps();
       unsubscribeOrders();
       unsubscribeSubs();
+      unsubscribePurchases();
     };
   }, [adminManufacturer]);
 
@@ -253,7 +291,7 @@ const Dashboard = () => {
             <HardDrive size={28} />
           </div>
           <div>
-            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Device Stock</h3>
+            <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Users Balance Stock</h3>
             <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>{stats.deviceStock}</p>
           </div>
         </div>
@@ -265,7 +303,7 @@ const Dashboard = () => {
           <div>
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Balance Stock</h3>
             <p style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {Math.max(0, (stats.totalOrderQuantity || 0) - (stats.applications || 0))}
+              {stats.balanceStock}
             </p>
           </div>
         </div>

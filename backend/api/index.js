@@ -562,16 +562,18 @@ app.delete('/api/users/:uid', async (req, res) => {
 app.get('/api/stats/admin', async (req, res) => {
   try {
     const { manufacturer } = req.query;
-    const [appsSnapshot, usersSnapshot, ordersSnapshot, subsSnapshot, stockDoc] = await Promise.all([
+    const [appsSnapshot, usersSnapshot, ordersSnapshot, subsSnapshot, purchasesSnapshot, stockDoc] = await Promise.all([
       db.collection('applications').get(),
       db.collection('users').get(),
       db.collection('orders').get(),
       db.collection('subscriptions').get(),
+      db.collection('purchaseEntries').get(),
       db.collection('settings').doc('dashboard').get()
     ]);
 
     let totalApps = 0;
     let pendingApps = 0;
+    let pendingReviewApps = 0;
     let certifiedApps = 0;
     let installedApps = 0;
 
@@ -582,43 +584,74 @@ app.get('/api/stats/admin', async (req, res) => {
       }
       totalApps++;
       const st = data.status || 'Pending';
-      if (st === 'Pending') pendingApps++;
+      if (st === 'Pending') {
+        pendingApps++;
+        if (!data.viewed && !data.isViewed && !data.adminViewed) {
+          pendingReviewApps++;
+        }
+      }
       if (st === 'Certified') certifiedApps++;
       if (['Installed', 'TempCertUploaded', 'RTOApproved'].includes(st)) installedApps++;
     });
 
+    const usersList = [];
     let totalUsers = 0;
     usersSnapshot.forEach(doc => {
-      const u = doc.data();
-      if (u.role !== 'admin') totalUsers++;
+      const u = { id: doc.id, ...doc.data() };
+      if (u.role !== 'admin') {
+        totalUsers++;
+        usersList.push(u);
+      }
     });
 
+    const ordersList = [];
     let totalOrders = 0;
     let totalOrderQuantity = 0;
     ordersSnapshot.forEach(doc => {
-      const o = doc.data();
+      const o = { id: doc.id, ...doc.data() };
+      ordersList.push(o);
       totalOrders++;
       totalOrderQuantity += Number(o.quantity || 0);
     });
 
-    let totalSubscriptions = 0;
-    subsSnapshot.forEach(() => {
-      totalSubscriptions++;
+    const appsList = [];
+    appsSnapshot.forEach(doc => {
+      appsList.push({ id: doc.id, ...doc.data() });
     });
 
-    const deviceStock = stockDoc.exists ? (stockDoc.data().deviceStock || 0) : 0;
-    const balanceStock = Math.max(0, totalOrderQuantity - totalApps);
+    let totalSubscriptions = 0;
+    let totalSubscriptionCount = 0;
+    subsSnapshot.forEach(doc => {
+      const s = doc.data();
+      totalSubscriptions++;
+      totalSubscriptionCount += Number(s.subscriptionCount || 0);
+    });
+
+    const usersBalanceStock = usersList.reduce((sum, u) => {
+      const userOrders = ordersList.filter(o => o.userId === u.id || o.userId === u.uid || (u.email && o.userEmail === u.email));
+      const totalStock = userOrders.reduce((s, o) => s + Number(o.quantity || 0), 0);
+      const usedApps = appsList.filter(a => a.userId === u.id || a.userId === u.uid || (u.email && a.userEmail === u.email)).length;
+      return sum + Math.max(0, totalStock - usedApps);
+    }, 0);
+
+    let totalPurchasedQuantity = 0;
+    purchasesSnapshot.forEach(doc => {
+      totalPurchasedQuantity += Number(doc.data().quantity || 0);
+    });
+
+    const balanceStock = Math.max(0, totalPurchasedQuantity - totalOrderQuantity);
 
     const statsData = {
       totalUsers,
       applications: pendingApps,
-      pendingReview: pendingApps,
+      pendingReview: pendingReviewApps,
       certificatesIssued: certifiedApps,
       installed: installedApps,
-      totalOrders,
+      totalOrders: totalOrderQuantity,
       totalOrderQuantity,
-      subscriptions: totalSubscriptions,
-      deviceStock,
+      subscriptions: totalSubscriptionCount,
+      deviceStock: usersBalanceStock,
+      usersBalanceStock,
       balanceStock
     };
     
@@ -834,6 +867,21 @@ app.delete('/api/applications/:id', async (req, res) => {
     res.json({ message: 'Application deleted successfully' });
   } catch (error) {
     console.error('Error deleting application:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark Application as Viewed (Admin)
+app.put('/api/applications/:id/view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('applications').doc(id).update({
+      viewed: true
+    });
+    cache.del('all_applications');
+    res.json({ message: 'Application marked as viewed' });
+  } catch (error) {
+    console.error('Error marking application as viewed:', error);
     res.status(500).json({ error: error.message });
   }
 });

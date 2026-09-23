@@ -111,6 +111,25 @@ const Applications = () => {
   };
 
 
+  const handleViewApp = async (app: any) => {
+    setSelectedApp(app);
+    if (!app.viewed && !app.isViewed && !app.adminViewed) {
+      try {
+        await fetch(`${backendUrl}/api/applications/${app.id}/view`, { method: 'PUT' });
+      } catch (err) {
+        console.warn('Backend mark viewed failed, using Firestore Web SDK fallback', err);
+      }
+      if (db) {
+        try {
+          await updateDoc(doc(db, 'applications', app.id), { viewed: true });
+        } catch (e) {
+          console.error('Firestore fallback mark viewed error:', e);
+        }
+      }
+      setApplications(prev => prev.map(a => a.id === app.id ? { ...a, viewed: true } : a));
+    }
+  };
+
   const handleApprove = async (id: string) => {
     if (!window.confirm('Are you sure you want to approve this application and move it to Installed?')) return;
     let approved = false;
@@ -367,7 +386,7 @@ const Applications = () => {
                     <td style={{ padding: '1rem 0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                         <button 
-                          onClick={() => setSelectedApp(app)}
+                          onClick={() => handleViewApp(app)}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '0.5rem', fontWeight: 500, cursor: 'pointer' }}
                         >
                           View
