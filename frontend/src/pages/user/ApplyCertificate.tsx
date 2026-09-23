@@ -62,7 +62,7 @@ const ApplyCertificate = () => {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [rtoOffices, setRtoOffices] = useState<string[]>([]);
   
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
 
   useEffect(() => {
     // Fetch Settings
@@ -297,12 +297,19 @@ const ApplyCertificate = () => {
           };
         });
       } else {
-        console.error('Failed to scan barcode', await res.text());
-        alert('Failed to auto-scan barcode. Please enter details manually.');
+        let errDetails = '';
+        try {
+          const errJson = await res.json();
+          errDetails = errJson.details || errJson.error || JSON.stringify(errJson);
+        } catch (e) {
+          errDetails = await res.text();
+        }
+        console.error('Failed to scan barcode:', errDetails);
+        alert(`Failed to auto-scan barcode: ${errDetails || 'Please enter details manually.'}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Scan error:', err);
-      alert('Network error while scanning barcode.');
+      alert(`Network error while scanning barcode: ${err.message || 'Please enter details manually.'}`);
     } finally {
       setIsScanning(false);
     }
