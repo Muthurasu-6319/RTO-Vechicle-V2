@@ -196,7 +196,37 @@ Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456", "manufact
       }
     ];
 
-    const modelCandidates = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+    // Dynamically query available models for this API key to avoid 404 Model Not Found errors
+    let modelCandidates = [];
+    try {
+      const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listResp.ok) {
+        const listData = await listResp.json();
+        if (listData.models && Array.isArray(listData.models)) {
+          const validModels = listData.models
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace(/^models\//, ''));
+          
+          // Sort so flash / vision models come first
+          validModels.sort((a, b) => {
+            const aFlash = a.includes('flash') ? 0 : 1;
+            const bFlash = b.includes('flash') ? 0 : 1;
+            return aFlash - bFlash;
+          });
+          modelCandidates = validModels;
+        }
+      } else {
+        const listErrText = await listResp.text();
+        console.warn('Google Models API returned non-200 status:', listResp.status, listErrText);
+      }
+    } catch (listErr) {
+      console.warn('Dynamic Gemini model listing failed:', listErr.message);
+    }
+
+    if (modelCandidates.length === 0) {
+      modelCandidates = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.0-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-002"];
+    }
+
     let responseText = '';
     let lastError = null;
 
