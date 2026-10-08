@@ -43,13 +43,32 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ isAdmin = false }) 
       return;
     }
 
+    const adminRole = (sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || '').toLowerCase().trim();
+    const adminToken = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+    const isSuperAdmin = adminToken === 'mock-jwt-token-for-admin' || adminRole.includes('full') || adminRole.includes('super');
+    const adminMfg = (sessionStorage.getItem('adminManufacturer') || localStorage.getItem('adminManufacturer') || '').trim();
+
+    const filterForAdmin = (list: any[]) => {
+      if (isAdmin && !isSuperAdmin && adminMfg) {
+        const target = adminMfg.toLowerCase();
+        return list.filter((n: any) => {
+          if (!n.manufacturer) return true;
+          return String(n.manufacturer).trim().toLowerCase() === target;
+        });
+      }
+      return list;
+    };
+
     let fetchedFromBackend = false;
     try {
-      const res = await fetch(`${backendUrl}/api/notifications/${fetchUid}`);
+      const queryParams = isAdmin && !isSuperAdmin && adminMfg 
+        ? `?manufacturer=${encodeURIComponent(adminMfg)}&isSuperAdmin=false` 
+        : `?isSuperAdmin=${isSuperAdmin}`;
+      const res = await fetch(`${backendUrl}/api/notifications/${fetchUid}${queryParams}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          setNotifications(data);
+          setNotifications(filterForAdmin(data));
           fetchedFromBackend = true;
         }
       }
@@ -63,7 +82,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ isAdmin = false }) 
         const snapshot = await getDocs(q);
         const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
         notifs.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        setNotifications(notifs.slice(0, 20));
+        setNotifications(filterForAdmin(notifs).slice(0, 20));
       } catch (e) {
         console.error('Firestore notifications fallback failed:', e);
       }

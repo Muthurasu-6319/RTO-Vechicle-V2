@@ -111,11 +111,16 @@ const ApplyCertificate = () => {
   // Logic to calculate Validity based on Registration Date
   useEffect(() => {
     if (formData.registrationDate) {
-      // Up to 22/09/2018 => 1 Year; After 22/09/2018 (23/09/2018 onwards) => 2 Years
-      if (formData.registrationDate <= '2018-09-22') {
-        setFormData(prev => ({ ...prev, validity: '1 Year' }));
-      } else {
+      const [year, month, day] = formData.registrationDate.split('-').map(Number);
+      const regMidnight = new Date(year, month - 1, day);
+      const now = new Date();
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const vehicleAgeDays = Math.round((todayMidnight.getTime() - regMidnight.getTime()) / 86400000);
+
+      if (vehicleAgeDays <= 2920) {
         setFormData(prev => ({ ...prev, validity: '2 Years' }));
+      } else {
+        setFormData(prev => ({ ...prev, validity: '1 Year' }));
       }
     } else {
       setFormData(prev => ({ ...prev, validity: '' }));

@@ -783,6 +783,7 @@ app.post('/api/applications', async (req, res) => {
     try {
       await db.collection('notifications').add({
         userId: 'admin',
+        manufacturer: (data.manufacturer || '').trim(),
         title: 'New Application Received',
         message: `A new certificate application has been submitted for vehicle ${data.vehicleNo}.`,
         read: false,
@@ -1537,15 +1538,25 @@ app.get('/api/subscriptions/user/:uid', async (req, res) => {
 app.get('/api/notifications/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
+    const { manufacturer, isSuperAdmin } = req.query;
+    
     const snapshot = await db.collection('notifications')
       .where('userId', '==', uid)
       .get();
       
-    const notifications = [];
+    let notifications = [];
     snapshot.forEach(doc => {
       notifications.push({ id: doc.id, ...doc.data() });
     });
     
+    if (uid === 'admin' && isSuperAdmin !== 'true' && manufacturer) {
+      const targetMfg = String(manufacturer).trim().toLowerCase();
+      notifications = notifications.filter(n => {
+        if (!n.manufacturer) return true;
+        return String(n.manufacturer).trim().toLowerCase() === targetMfg;
+      });
+    }
+
     // Sort in memory to avoid composite index requirement
     notifications.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     
