@@ -117,7 +117,7 @@ const ApplyCertificate = () => {
       const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const vehicleAgeDays = Math.round((todayMidnight.getTime() - regMidnight.getTime()) / 86400000);
 
-      if (vehicleAgeDays <= 2920) {
+      if (vehicleAgeDays <= 2924) {
         setFormData(prev => ({ ...prev, validity: '2 Years' }));
       } else {
         setFormData(prev => ({ ...prev, validity: '1 Year' }));
