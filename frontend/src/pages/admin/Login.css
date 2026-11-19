@@ -48,8 +48,9 @@
 .login-logo {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  border-radius: 12px;
+  background: url('/logo.png') no-repeat center center;
+  background-size: cover;
+  border-radius: 50%;
   box-shadow: var(--shadow-md);
 }
 

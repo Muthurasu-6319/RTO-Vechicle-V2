@@ -40,9 +40,9 @@ export const VLinkLogo = ({ size = 36, light = false }: { size?: number; light?:
         alt="V Link Logo"
         style={{
           height: `${size}px`,
-          width: 'auto',
-          maxWidth: `${size * 1.5}px`,
-          objectFit: 'contain',
+          width: `${size}px`,
+          borderRadius: '50%',
+          objectFit: 'cover',
           display: 'block'
         }}
       />

@@ -53,7 +53,7 @@ const UserLogin = () => {
       {/* Left Side: Welcome Text */}
       <div style={{ flex: '1 1 50%', minWidth: '300px', backgroundColor: '#0f172a', padding: '4rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'relative', zIndex: 2 }}>
-          <div style={{ width: '48px', height: '48px', backgroundColor: '#3b82f6', borderRadius: '12px', marginBottom: '2rem' }}></div>
+          <img src="/logo.png" alt="V Link Logo" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', marginBottom: '2rem', display: 'block' }} />
           <h1 style={{ fontSize: '3.5rem', fontWeight: 800, color: 'white', marginBottom: '1.5rem', lineHeight: 1.1 }}>
             Welcome to the<br/><span style={{ color: '#3b82f6' }}>User Portal</span>
           </h1>
