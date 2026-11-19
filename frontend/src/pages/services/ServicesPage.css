@@ -397,3 +397,95 @@
     align-items: flex-start;
   }
 }
+
+/* ==========================================================================
+   SERVICES FOOTER STYLES
+   ========================================================================== */
+.vlink-footer {
+  background-color: #0B1120;
+  color: #FFFFFF;
+  padding: 60px 0 28px 0;
+  border-top: 1px solid #1E293B;
+  width: 100%;
+}
+
+.vlink-footer-grid {
+  display: grid !important;
+  grid-template-columns: 2fr 1fr 1.1fr 1.4fr !important;
+  gap: 48px !important;
+  padding-bottom: 48px !important;
+  border-bottom: 1px solid #1E293B !important;
+  width: 100% !important;
+}
+
+.vlink-footer-brand,
+.vlink-footer-brand-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.vlink-footer-links-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.vlink-footer-link {
+  font-size: 14px !important;
+  color: #94A3B8 !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease !important;
+  line-height: 1.4 !important;
+}
+
+.vlink-footer-link:hover {
+  color: #38BDF8 !important;
+  transform: translateX(3px) !important;
+}
+
+.vlink-footer-contact-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.vlink-footer-contact-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 13.5px !important;
+  color: #94A3B8 !important;
+  line-height: 1.5 !important;
+}
+
+.vlink-footer-bottom {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding-top: 28px !important;
+  font-size: 13px !important;
+  color: #64748B !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+}
+
+@media (max-width: 992px) {
+  .vlink-footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 36px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .vlink-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  .vlink-footer-bottom {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
+}
+

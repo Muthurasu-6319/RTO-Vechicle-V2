@@ -1611,24 +1611,28 @@
    SECTION 11: FOOTER
    ========================================================================== */
 .vlink-footer {
-  background-color: #0F172A;
+  background-color: #0B1120;
   color: #FFFFFF;
-  padding: 60px 0 24px 0;
+  padding: 60px 0 28px 0;
   border-top: 1px solid #1E293B;
+  width: 100%;
 }
 
-.vlink-footer-top {
+.vlink-footer-top,
+.vlink-footer-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 40px;
-  padding-bottom: 40px;
+  grid-template-columns: 2fr 1fr 1.1fr 1.4fr;
+  gap: 48px;
+  padding-bottom: 48px;
   border-bottom: 1px solid #1E293B;
+  width: 100%;
 }
 
-.vlink-footer-brand {
+.vlink-footer-brand,
+.vlink-footer-brand-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .vlink-footer-logo {
@@ -1642,9 +1646,10 @@
 }
 
 .vlink-footer-tagline {
-  font-size: 13px;
+  font-size: 14px;
   color: #94A3B8;
-  font-weight: 500;
+  font-weight: 600;
+  margin: 0;
 }
 
 .vlink-footer-links-col {
@@ -1655,50 +1660,55 @@
 
 .vlink-footer-link {
   font-size: 14px;
-  color: #CBD5E1;
+  color: #94A3B8;
   text-decoration: none;
-  transition: color 0.15s ease;
+  transition: all 0.2s ease;
+  line-height: 1.4;
 }
 
 .vlink-footer-link:hover {
-  color: #FFFFFF;
+  color: #38BDF8;
+  transform: translateX(3px);
 }
 
 .vlink-footer-link.orange {
-  color: var(--vlink-orange);
+  color: var(--vlink-orange, #F97316);
   font-weight: 600;
 }
 
 .vlink-footer-link.orange:hover {
-  color: var(--vlink-orange-hover);
+  color: #FB923C;
 }
 
 .vlink-footer-contact-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .vlink-footer-contact-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
-  color: #CBD5E1;
+  font-size: 13.5px;
+  color: #94A3B8;
+  line-height: 1.5;
 }
 
 .vlink-footer-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 24px;
-  font-size: 12px;
+  padding-top: 28px;
+  font-size: 13px;
   color: #64748B;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .vlink-footer-legal {
   display: flex;
-  gap: 20px;
+  gap: 24px;
 }
 
 .vlink-footer-legal a {
@@ -1709,6 +1719,27 @@
 
 .vlink-footer-legal a:hover {
   color: #94A3B8;
+}
+
+@media (max-width: 992px) {
+  .vlink-footer-top,
+  .vlink-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+  }
+}
+
+@media (max-width: 640px) {
+  .vlink-footer-top,
+  .vlink-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .vlink-footer-bottom {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
 }
 
 /* ==========================================================================

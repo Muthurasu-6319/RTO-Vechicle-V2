@@ -126,14 +126,6 @@ export const ServicesPage: React.FC = () => {
             {/* Right: Actions */}
             <div className="vlink-nav-actions">
               <a
-                href="#portal-access"
-                className="vlink-btn vlink-btn-nav-login"
-                title="Select Login Portal"
-              >
-                <User size={16} />
-                <span>Login</span>
-              </a>
-              <a
                 href="https://live.vlinktracking.com/login"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -586,7 +578,7 @@ export const ServicesPage: React.FC = () => {
         <div className="vlink-container">
           <div className="vlink-footer-grid">
             {/* Brand Column */}
-            <div className="vlink-footer-brand-col">
+            <div className="vlink-footer-brand">
               <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }} className="vlink-footer-logo">
                 <VLinkLogo size={32} light={true} />
               </a>
@@ -607,11 +599,17 @@ export const ServicesPage: React.FC = () => {
               <a href="/#about" onClick={(e) => { e.preventDefault(); handleNavClick('about'); }} className="vlink-footer-link">About</a>
               <a href="/services" className="vlink-footer-link active" style={{ color: '#60A5FA' }}>Services</a>
               <a href="/#contact" onClick={(e) => { e.preventDefault(); handleNavClick('contact'); }} className="vlink-footer-link">Contact</a>
-              <a href="https://live.vlinktracking.com/login" target="_blank" rel="noopener noreferrer" className="vlink-footer-link orange">Customer Login</a>
-              <a href="https://www.vlinktracking.com/user/login" target="_blank" rel="noopener noreferrer" className="vlink-footer-link">RTO Login</a>
+              <a
+                href="https://live.vlinktracking.com/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="vlink-footer-link orange"
+              >
+                Track Your Vehicle
+              </a>
             </div>
 
-            {/* Portals Access */}
+            {/* Direct Portals */}
             <div className="vlink-footer-links-col">
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
                 Direct Portals

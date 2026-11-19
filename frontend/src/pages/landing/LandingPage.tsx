@@ -201,14 +201,6 @@ export const LandingPage: React.FC = () => {
 
             {/* Right: Actions */}
             <div className="vlink-nav-actions">
-              <button
-                onClick={() => navigate('/services')}
-                className="vlink-btn vlink-btn-nav-login"
-                title="Select Login Portal"
-              >
-                <User size={16} />
-                <span>Login</span>
-              </button>
               <a
                 href="https://live.vlinktracking.com/login"
                 target="_blank"
@@ -249,13 +241,6 @@ export const LandingPage: React.FC = () => {
                 <span>Track Your Vehicle</span>
                 <ArrowRight size={16} />
               </a>
-              <button
-                onClick={() => navigate('/services')}
-                className="vlink-btn vlink-btn-outline vlink-hero-btn-login"
-              >
-                <User size={16} />
-                <span>Login</span>
-              </button>
             </div>
           </div>
         </div>
@@ -780,13 +765,15 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => navigate('/services')}
+            <a
+              href="https://live.vlinktracking.com/login"
+              target="_blank"
+              rel="noopener noreferrer"
               className="vlink-cta-btn"
             >
-              <span>Login</span>
+              <span>Track Your Vehicle</span>
               <ArrowRight size={16} />
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -819,7 +806,6 @@ export const LandingPage: React.FC = () => {
               <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about', 'about'); }} className="vlink-footer-link">About</a>
               <a href="/services" onClick={(e) => { e.preventDefault(); navigate('/services'); }} className="vlink-footer-link">Services</a>
               <a href="#contact" onClick={(e) => { e.preventDefault(); scrollToSection('contact', 'contact'); }} className="vlink-footer-link">Contact</a>
-              <a href="/services" onClick={(e) => { e.preventDefault(); navigate('/services'); }} className="vlink-footer-link">Login</a>
               <a
                 href="https://live.vlinktracking.com/login"
                 target="_blank"
@@ -827,6 +813,22 @@ export const LandingPage: React.FC = () => {
                 className="vlink-footer-link orange"
               >
                 Track Your Vehicle
+              </a>
+            </div>
+
+            {/* Direct Portals */}
+            <div className="vlink-footer-links-col">
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                Direct Portals
+              </div>
+              <a href="https://live.vlinktracking.com/login" target="_blank" rel="noopener noreferrer" className="vlink-footer-link">
+                Customer GPS Tracking
+              </a>
+              <a href="https://www.vlinktracking.com/user/login" target="_blank" rel="noopener noreferrer" className="vlink-footer-link">
+                RTO Certificate Portal
+              </a>
+              <a href="/admin" onClick={(e) => { e.preventDefault(); navigate('/admin'); }} className="vlink-footer-link">
+                Admin Portal
               </a>
             </div>
 
