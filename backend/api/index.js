@@ -289,6 +289,32 @@ Example format: {"imei": "864201049281726", "vldSerial": "IRSN123456", "manufact
 
 // In-memory cache for created admins to prevent login failure if database quota is exceeded
 const inMemoryAdmins = [];
+let cachedAdminCredentials = null;
+
+// Helper to get admin security credentials from DB or in-memory cache
+async function getStoredAdminCredentials() {
+  if (cachedAdminCredentials && cachedAdminCredentials.password) {
+    return cachedAdminCredentials;
+  }
+  if (db) {
+    try {
+      const credDoc = await db.collection('settings').doc('admin_credentials').get();
+      if (credDoc.exists) {
+        cachedAdminCredentials = credDoc.data();
+        return cachedAdminCredentials;
+      }
+      // Also check fallback in config doc
+      const configDoc = await db.collection('settings').doc('config').get();
+      if (configDoc.exists && configDoc.data()?.adminCredentials) {
+        cachedAdminCredentials = configDoc.data().adminCredentials;
+        return cachedAdminCredentials;
+      }
+    } catch (err) {
+      console.warn('Firestore fetch admin_credentials failed:', err.message);
+    }
+  }
+  return cachedAdminCredentials;
+}
 
 // Admin Authentication Route
 app.post('/api/auth/login', async (req, res) => {
@@ -297,12 +323,36 @@ app.post('/api/auth/login', async (req, res) => {
   const cleanPassword = (password || '').trim();
   
   try {
-    // 1. Check Hardcoded Superadmin Fallback
-    if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
-      return res.json({ token: 'mock-jwt-token-for-admin', role: 'full admin', manufacturer: '', name: 'Super Admin', email: 'admin@gmail.com' });
+    // 1. Verify Super Admin credentials from Database first
+    const storedCreds = await getStoredAdminCredentials();
+    if (storedCreds && storedCreds.password) {
+      const storedId = ((storedCreds.adminId || storedCreds.email || 'admin@gmail.com') + '').toLowerCase().trim();
+      const storedPass = (storedCreds.password + '').trim();
+
+      if (cleanEmail === storedId && cleanPassword === storedPass) {
+        return res.json({ 
+          token: 'mock-jwt-token-for-admin', 
+          role: 'full admin', 
+          manufacturer: '', 
+          name: storedCreds.name || 'Super Admin', 
+          email: storedCreds.email || cleanEmail 
+        });
+      }
+      // Note: If database has custom credentials, we do NOT allow the old default password!
+    } else {
+      // If no custom credentials are set in the database yet, fallback to initial default
+      if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
+        return res.json({ 
+          token: 'mock-jwt-token-for-admin', 
+          role: 'full admin', 
+          manufacturer: '', 
+          name: 'Super Admin', 
+          email: 'admin@gmail.com' 
+        });
+      }
     }
 
-    // 3. Check inMemoryAdmins cache (case-insensitive email, trimmed password)
+    // 2. Check inMemoryAdmins cache (case-insensitive email, trimmed password)
     const memAdmin = inMemoryAdmins.find(a => 
       a.email && a.email.toLowerCase().trim() === cleanEmail && 
       (a.password || '').trim() === cleanPassword
@@ -317,38 +367,40 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // 4. Check Database for Admin Users
+    // 3. Check Database for Admin Users
     try {
-      const adminsRef = db.collection('admins');
-      const snapshot = await adminsRef.get();
+      if (db) {
+        const adminsRef = db.collection('admins');
+        const snapshot = await adminsRef.get();
 
-      if (!snapshot.empty) {
-        let validAdmin = null;
-        snapshot.forEach(doc => {
-          const adminData = doc.data();
-          const adminEmail = (adminData.email || '').toLowerCase().trim();
-          const adminPassword = (adminData.password || '').trim();
-          if (adminEmail === cleanEmail && adminPassword === cleanPassword) {
-            validAdmin = { id: doc.id, ...adminData };
-          }
-        });
-
-        if (validAdmin) {
-          // Cache in memory for fast future logins
-          const existingIdx = inMemoryAdmins.findIndex(a => a.id === validAdmin.id || (a.email && a.email.toLowerCase().trim() === cleanEmail));
-          if (existingIdx !== -1) {
-            inMemoryAdmins[existingIdx] = validAdmin;
-          } else {
-            inMemoryAdmins.push(validAdmin);
-          }
-
-          return res.json({ 
-            token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
-            role: validAdmin.role || 'standard', 
-            manufacturer: validAdmin.manufacturer || '',
-            name: validAdmin.name || 'Standard Admin',
-            email: validAdmin.email || cleanEmail
+        if (!snapshot.empty) {
+          let validAdmin = null;
+          snapshot.forEach(doc => {
+            const adminData = doc.data();
+            const adminEmail = (adminData.email || '').toLowerCase().trim();
+            const adminPassword = (adminData.password || '').trim();
+            if (adminEmail === cleanEmail && adminPassword === cleanPassword) {
+              validAdmin = { id: doc.id, ...adminData };
+            }
           });
+
+          if (validAdmin) {
+            // Cache in memory for fast future logins
+            const existingIdx = inMemoryAdmins.findIndex(a => a.id === validAdmin.id || (a.email && a.email.toLowerCase().trim() === cleanEmail));
+            if (existingIdx !== -1) {
+              inMemoryAdmins[existingIdx] = validAdmin;
+            } else {
+              inMemoryAdmins.push(validAdmin);
+            }
+
+            return res.json({ 
+              token: 'mock-jwt-token-for-admin-' + validAdmin.id, 
+              role: validAdmin.role || 'standard', 
+              manufacturer: validAdmin.manufacturer || '',
+              name: validAdmin.name || 'Standard Admin',
+              email: validAdmin.email || cleanEmail
+            });
+          }
         }
       }
     } catch (dbErr) {
@@ -1218,6 +1270,77 @@ app.put('/api/settings', async (req, res) => {
     res.json({ message: 'Settings updated successfully' });
   } catch (error) {
     console.error('Error updating settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Admin Security Credentials (for Settings page)
+app.get('/api/settings/admin-credentials', async (req, res) => {
+  try {
+    const creds = await getStoredAdminCredentials();
+    if (creds && (creds.adminId || creds.email)) {
+      return res.json({
+        adminId: creds.adminId || creds.email || 'admin@gmail.com',
+        email: creds.email || creds.adminId || 'admin@gmail.com',
+        updatedAt: creds.updatedAt || null,
+        isCustom: true
+      });
+    }
+    res.json({
+      adminId: 'admin@gmail.com',
+      email: 'admin@gmail.com',
+      updatedAt: null,
+      isCustom: false
+    });
+  } catch (error) {
+    console.error('Error fetching admin credentials:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Admin Security Credentials (from Settings page)
+app.put('/api/settings/admin-credentials', async (req, res) => {
+  try {
+    const { adminId, password } = req.body;
+    const cleanId = (adminId || '').trim();
+    const cleanPass = (password || '').trim();
+
+    if (!cleanId) {
+      return res.status(400).json({ error: 'Admin ID / Email is required' });
+    }
+    if (!cleanPass || cleanPass.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long' });
+    }
+
+    const payload = {
+      adminId: cleanId,
+      email: cleanId,
+      password: cleanPass,
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'Admin Settings'
+    };
+
+    cachedAdminCredentials = payload;
+
+    if (db) {
+      try {
+        await Promise.all([
+          db.collection('settings').doc('admin_credentials').set(payload, { merge: true }),
+          db.collection('settings').doc('config').set({ adminCredentials: payload }, { merge: true })
+        ]);
+      } catch (dbErr) {
+        console.warn('Firestore admin_credentials save error:', dbErr.message);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Admin credentials updated successfully in database', 
+      adminId: cleanId,
+      updatedAt: payload.updatedAt 
+    });
+  } catch (error) {
+    console.error('Error updating admin credentials:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 import { db } from '../../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import './Login.css';
 
 const AdminLogin = () => {
@@ -53,15 +53,7 @@ const AdminLogin = () => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanPassword = password.trim();
 
-    // 0. Instant Super Admin Check
-    if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
-      setAdminSession('mock-jwt-token-for-admin', 'full admin', '', 'Super Admin', 'admin@gmail.com');
-      navigate('/admin/dashboard');
-      setIsLoading(false);
-      return;
-    }
-
-    // 1. Try Backend API first
+    // 1. Try Backend API first (Database verification on server)
     try {
       const res = await fetch(`${backendUrl}/api/auth/login`, {
         method: 'POST',
@@ -71,7 +63,7 @@ const AdminLogin = () => {
 
       if (res.ok) {
         const data = await res.json();
-        const role = cleanEmail === 'admin@gmail.com' ? 'full admin' : (data.role || 'standard');
+        const role = data.role || 'full admin';
         setAdminSession(data.token, role, data.manufacturer, data.name || cleanEmail, data.email || cleanEmail);
         
         const isStandard = role.toLowerCase().includes('standard');
@@ -82,14 +74,57 @@ const AdminLogin = () => {
         }
         setIsLoading(false);
         return;
+      } else if (res.status === 401) {
+        // Backend verified credentials against database and rejected invalid attempt
+        setError('Invalid email or password. Please try again.');
+        setIsLoading(false);
+        return;
       }
     } catch (err) {
-      console.warn('Backend login request failed, attempting client-side Firestore fallback:', err);
+      console.warn('Backend login request failed, attempting direct Firestore database verification:', err);
     }
 
-    // 2. Client-side Firestore Fallback
+    // 2. Direct Firestore Database Verification Fallback
     if (db) {
       try {
+        // First check database settings for customized Super Admin credentials
+        let customAdminCreds: any = null;
+        try {
+          const credDoc = await getDoc(doc(db, 'settings', 'admin_credentials'));
+          if (credDoc.exists()) {
+            customAdminCreds = credDoc.data();
+          } else {
+            const configDoc = await getDoc(doc(db, 'settings', 'config'));
+            if (configDoc.exists() && configDoc.data()?.adminCredentials) {
+              customAdminCreds = configDoc.data().adminCredentials;
+            }
+          }
+        } catch (dbErr) {
+          console.warn('Could not read admin_credentials from Firestore settings:', dbErr);
+        }
+
+        if (customAdminCreds && customAdminCreds.password) {
+          const storedId = ((customAdminCreds.adminId || customAdminCreds.email || '') + '').toLowerCase().trim();
+          const storedPassword = (customAdminCreds.password + '').trim();
+
+          if (cleanEmail === storedId && cleanPassword === storedPassword) {
+            setAdminSession('mock-jwt-token-for-admin', 'full admin', '', customAdminCreds.name || 'Super Admin', customAdminCreds.email || cleanEmail);
+            navigate('/admin/dashboard');
+            setIsLoading(false);
+            return;
+          }
+          // Note: When custom credentials exist in the database, the old default credentials MUST NOT work!
+        } else {
+          // If no custom credentials have been set in the database yet, allow initial default
+          if (cleanEmail === 'admin@gmail.com' && cleanPassword === 'admin') {
+            setAdminSession('mock-jwt-token-for-admin', 'full admin', '', 'Super Admin', 'admin@gmail.com');
+            navigate('/admin/dashboard');
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Check standard admins in 'admins' collection
         const snapshot = await getDocs(collection(db, 'admins'));
         let validAdmin: any = null;
 
@@ -104,7 +139,7 @@ const AdminLogin = () => {
         });
 
         if (validAdmin) {
-          const role = cleanEmail === 'admin@gmail.com' ? 'full admin' : (validAdmin.role || 'standard');
+          const role = validAdmin.role || 'standard';
           setAdminSession('mock-jwt-token-for-admin-' + validAdmin.id, role, validAdmin.manufacturer, validAdmin.name || cleanEmail, validAdmin.email || cleanEmail);
 
           const isStandard = role.toLowerCase().includes('standard');
