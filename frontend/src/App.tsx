@@ -21,6 +21,7 @@ import Certified from './pages/user/Certified';
 import Received from './pages/user/Received';
 import UserSubscription from './pages/user/Subscription';
 import LandingPage from './pages/landing/LandingPage';
+import ServicesPage from './pages/services/ServicesPage';
 
 // Placeholder for other pages
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -36,6 +37,9 @@ function App() {
       <Routes>
         {/* Landing Page */}
         <Route path="/" element={<LandingPage />} />
+        
+        {/* Services & Portals Page */}
+        <Route path="/services" element={<ServicesPage />} />
         
         {/* Admin Login Route */}
         <Route path="/admin" element={<AdminLogin />} />

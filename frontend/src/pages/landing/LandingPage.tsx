@@ -65,7 +65,7 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
 
   // Active navigation anchor
-  const [activeNav, setActiveNav] = useState<'home' | 'about' | 'contact'>('home');
+  const [activeNav, setActiveNav] = useState<'home' | 'about' | 'services' | 'contact'>('home');
 
   // Tracking Modal State
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
@@ -175,6 +175,18 @@ export const LandingPage: React.FC = () => {
               </li>
               <li>
                 <a
+                  href="/services"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/services');
+                  }}
+                  className={`vlink-nav-link ${activeNav === 'services' ? 'active' : ''}`}
+                >
+                  Services
+                </a>
+              </li>
+              <li>
+                <a
                   href="#contact"
                   onClick={(e) => {
                     e.preventDefault();
@@ -190,9 +202,9 @@ export const LandingPage: React.FC = () => {
             {/* Right: Actions */}
             <div className="vlink-nav-actions">
               <button
-                onClick={() => navigate('/user/login')}
+                onClick={() => navigate('/services')}
                 className="vlink-btn vlink-btn-nav-login"
-                title="Login to Portal"
+                title="Select Login Portal"
               >
                 <User size={16} />
                 <span>Login</span>
@@ -238,7 +250,7 @@ export const LandingPage: React.FC = () => {
                 <ArrowRight size={16} />
               </a>
               <button
-                onClick={() => navigate('/user/login')}
+                onClick={() => navigate('/services')}
                 className="vlink-btn vlink-btn-outline vlink-hero-btn-login"
               >
                 <User size={16} />
@@ -769,7 +781,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => navigate('/user/login')}
+              onClick={() => navigate('/services')}
               className="vlink-cta-btn"
             >
               <span>Login</span>
@@ -805,8 +817,9 @@ export const LandingPage: React.FC = () => {
               </div>
               <a href="#home" onClick={(e) => { e.preventDefault(); scrollToSection('home', 'home'); }} className="vlink-footer-link">Home</a>
               <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about', 'about'); }} className="vlink-footer-link">About</a>
+              <a href="/services" onClick={(e) => { e.preventDefault(); navigate('/services'); }} className="vlink-footer-link">Services</a>
               <a href="#contact" onClick={(e) => { e.preventDefault(); scrollToSection('contact', 'contact'); }} className="vlink-footer-link">Contact</a>
-              <a href="/user/login" onClick={(e) => { e.preventDefault(); navigate('/user/login'); }} className="vlink-footer-link">Login</a>
+              <a href="/services" onClick={(e) => { e.preventDefault(); navigate('/services'); }} className="vlink-footer-link">Login</a>
               <a
                 href="https://live.vlinktracking.com/login"
                 target="_blank"
@@ -934,7 +947,7 @@ export const LandingPage: React.FC = () => {
                     <button
                       onClick={() => {
                         setIsTrackingModalOpen(false);
-                        navigate('/user/login');
+                        navigate('/services');
                       }}
                       className="vlink-btn vlink-btn-blue"
                       style={{ fontSize: '13px', padding: '8px 16px' }}
