@@ -20,6 +20,7 @@ import Installed from './pages/user/Installed';
 import Certified from './pages/user/Certified';
 import Received from './pages/user/Received';
 import UserSubscription from './pages/user/Subscription';
+import LandingPage from './pages/landing/LandingPage';
 
 // Placeholder for other pages
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -33,8 +34,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Redirect root to user login */}
-        <Route path="/" element={<Navigate to="/user/login" replace />} />
+        {/* Landing Page */}
+        <Route path="/" element={<LandingPage />} />
         
         {/* Admin Login Route */}
         <Route path="/admin" element={<AdminLogin />} />
