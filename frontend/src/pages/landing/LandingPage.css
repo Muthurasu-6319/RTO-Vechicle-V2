@@ -212,12 +212,12 @@
 .vlink-hero-section {
   position: relative;
   padding: 100px 0 130px 0;
-  background-color: #0B1120;
+  background-color: #060B18;
   background-image: 
-    linear-gradient(90deg, rgba(11, 17, 32, 0.82) 0%, rgba(11, 17, 32, 0.45) 55%, rgba(11, 17, 32, 0.12) 100%),
+    linear-gradient(90deg, rgba(6, 11, 24, 0.78) 0%, rgba(6, 11, 24, 0.38) 50%, rgba(6, 11, 24, 0.12) 100%),
     url('/hero-bg.jpg');
   background-size: cover;
-  background-position: center right;
+  background-position: center;
   background-repeat: no-repeat;
   overflow: hidden;
 }
