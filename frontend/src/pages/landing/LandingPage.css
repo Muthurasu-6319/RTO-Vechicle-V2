@@ -103,21 +103,21 @@
 }
 
 /* ==========================================================================
-   SECTION 01: NAVBAR (Dark Theme matching Footer #0F172A)
+   SECTION 01: NAVBAR (Clean Crisp White Theme)
    ========================================================================== */
 .vlink-navbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: rgba(15, 23, 42, 0.96);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid #1E293B;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--vlink-border);
   height: 72px;
   display: flex;
   align-items: center;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .vlink-nav-inner {
@@ -134,7 +134,7 @@
   text-decoration: none;
   font-weight: 800;
   font-size: 20px;
-  color: #FFFFFF;
+  color: var(--vlink-navy);
   letter-spacing: -0.02em;
 }
 
@@ -159,7 +159,7 @@
 .vlink-nav-link {
   font-weight: 500;
   font-size: 14px;
-  color: #CBD5E1;
+  color: var(--vlink-text-secondary);
   padding: 7px 16px;
   border-radius: var(--vlink-radius-full);
   text-decoration: none;
@@ -167,14 +167,14 @@
 }
 
 .vlink-nav-link:hover {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--vlink-navy);
+  background-color: #F1F5F9;
 }
 
 .vlink-nav-link.active {
-  color: #60A5FA;
-  background-color: rgba(37, 99, 235, 0.22);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: var(--vlink-blue);
+  background-color: var(--vlink-blue-light);
+  border: 1px solid rgba(37, 99, 235, 0.15);
   font-weight: 600;
 }
 
@@ -185,9 +185,9 @@
 }
 
 .vlink-btn-nav-login {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF;
-  border: 1px solid #334155;
+  background-color: #FFFFFF;
+  color: var(--vlink-navy);
+  border: 1px solid var(--vlink-border);
   padding: 9px 18px;
   border-radius: var(--vlink-radius-sm);
   font-weight: 600;
@@ -200,9 +200,9 @@
 }
 
 .vlink-btn-nav-login:hover {
-  background-color: rgba(255, 255, 255, 0.16);
-  border-color: #64748B;
-  color: #FFFFFF;
+  background-color: #F8FAFC;
+  border-color: var(--vlink-border-hover);
+  color: var(--vlink-navy);
   transform: translateY(-1px);
 }
 
@@ -214,7 +214,7 @@
   padding: 100px 0 130px 0;
   background-color: #0B1120;
   background-image: 
-    linear-gradient(90deg, rgba(11, 17, 32, 0.78) 0%, rgba(11, 17, 32, 0.42) 50%, rgba(11, 17, 32, 0.08) 100%),
+    linear-gradient(90deg, rgba(11, 17, 32, 0.82) 0%, rgba(11, 17, 32, 0.45) 55%, rgba(11, 17, 32, 0.12) 100%),
     url('/hero-bg.jpg');
   background-size: cover;
   background-position: center right;
@@ -223,7 +223,7 @@
 }
 
 .vlink-hero-content {
-  max-width: 640px;
+  max-width: 650px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -236,68 +236,22 @@
   line-height: 1.14;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #FFFFFF;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  color: #FFFFFF !important;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
 }
 
 .vlink-hero-title .highlight-blue {
-  color: #60A5FA;
+  color: #38BDF8 !important;
   display: inline-block;
+  text-shadow: 0 0 24px rgba(56, 189, 248, 0.5);
 }
 
 .vlink-hero-desc {
   font-size: 18px;
   line-height: 1.6;
-  color: #CBD5E1;
-  max-width: 520px;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
-}
-
-.vlink-hero-btn-login {
-  background-color: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(8px);
-}
-
-.vlink-hero-btn-login:hover {
-  background-color: rgba(255, 255, 255, 0.22);
-  border-color: #FFFFFF;
-  color: #FFFFFF;
-}
-
-.vlink-hero-grid {
-  display: grid;
-  grid-template-columns: 1.05fr 1.15fr;
-  gap: 40px;
-  align-items: center;
-}
-
-.vlink-hero-left {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.vlink-hero-title {
-  font-size: 50px;
-  line-height: 1.12;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--vlink-navy);
-}
-
-.vlink-hero-title .highlight-blue {
-  color: var(--vlink-blue);
-  display: inline-block;
-  position: relative;
-}
-
-.vlink-hero-desc {
-  font-size: 18px;
-  line-height: 1.6;
-  color: var(--vlink-text-secondary);
-  max-width: 480px;
+  color: #F8FAFC !important;
+  max-width: 530px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
 .vlink-hero-buttons {
@@ -317,6 +271,16 @@
   padding: 13px 24px;
   font-size: 15px;
   border-radius: var(--vlink-radius-sm);
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.vlink-hero-btn-login:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-color: #FFFFFF;
+  color: #FFFFFF !important;
 }
 
 .vlink-trust-badge {

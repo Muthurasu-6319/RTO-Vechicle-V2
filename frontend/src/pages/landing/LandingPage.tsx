@@ -144,7 +144,7 @@ export const LandingPage: React.FC = () => {
           <div className="vlink-nav-inner">
             {/* Left: V Link Logo */}
             <a href="#home" onClick={() => scrollToSection('home', 'home')} className="vlink-logo-link">
-              <VLinkLogo size={36} light={true} />
+              <VLinkLogo size={36} light={false} />
             </a>
 
             {/* Center: Menu */}
